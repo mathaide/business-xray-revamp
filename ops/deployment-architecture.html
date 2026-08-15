@@ -1,0 +1,182 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Business X-Ray — Deployment Architecture (100 users, central analysis server)</title>
+<style>
+:root{--bg:#0d1117;--panel:#151b23;--panel2:#1b232d;--line:#26303c;--ink:#e6edf3;--mut:#93a1b0;--dim:#6b7a8a;
+--brand:#4f7cff;--brand2:#7aa2ff;--ok:#10b981;--warn:#f59e0b;--bad:#f43f5e;--violet:#a855f7;--cyan:#06b6d4;
+--radius:14px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}a{color:var(--brand2)}
+header{padding:38px 0 20px;border-bottom:1px solid var(--line);background:radial-gradient(1100px 380px at 8% -10%,rgba(79,124,255,.14),transparent 60%),radial-gradient(800px 360px at 92% 0,rgba(16,185,129,.09),transparent 55%)}
+.badge{display:inline-flex;gap:8px;align-items:center;font-size:12px;color:var(--mut);border:1px solid var(--line);padding:5px 10px;border-radius:999px;margin-bottom:12px}
+h1{font-size:28px;letter-spacing:-.5px;margin:.1em 0 .3em}h2{font-size:20px;margin:0 0 .5em}h3{font-size:14px;margin:0 0 .3em}
+.lead{color:var(--mut);max-width:82ch}
+section{padding:24px 0}.grid{display:grid;gap:16px}.c3{grid-template-columns:repeat(3,1fr)}.c2{grid-template-columns:1fr 1fr}
+@media(max-width:880px){.c3,.c2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.muted{color:var(--mut)}.dim{color:var(--dim)}.small{font-size:12.5px}.mono{font-family:var(--mono)}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 12px}.spacer{flex:1}
+.chip{font-size:13px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);color:var(--mut);cursor:pointer;user-select:none}
+.chip.on{background:color-mix(in srgb,var(--brand) 18%,transparent);border-color:var(--brand);color:var(--ink)}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;border:1px solid transparent}
+.tag.b{color:var(--brand2);border-color:color-mix(in srgb,var(--brand) 45%,transparent);background:color-mix(in srgb,var(--brand) 12%,transparent)}
+.tag.g{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.tag.v{color:var(--violet);border-color:color-mix(in srgb,var(--violet) 45%,transparent);background:color-mix(in srgb,var(--violet) 12%,transparent)}
+.tag.w{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+/* diagram */
+.diagram{display:flex;flex-direction:column;gap:12px}
+.tier{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel)}
+.tier .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);margin-bottom:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.box{flex:1;min-width:150px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.box h4{margin:0 0 3px;font-size:13px}.box p{margin:0;font-size:11.5px;color:var(--mut)}
+.box.core{border-color:color-mix(in srgb,var(--brand) 50%,transparent)}
+.arrow{text-align:center;color:var(--dim);font-size:18px;margin:-4px 0}
+.overlay{border:1px dashed color-mix(in srgb,var(--warn) 55%,transparent);border-radius:10px;padding:10px 12px;background:color-mix(in srgb,var(--warn) 7%,transparent);font-size:12.5px;color:var(--mut)}
+.callout{border-left:3px solid var(--brand);background:var(--panel2);padding:12px 14px;border-radius:0 10px 10px 0;font-size:13.5px;color:var(--mut)}
+.callout.g{border-color:var(--ok)}.callout.w{border-color:var(--warn)}
+.step{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}.step .n{width:22px;height:22px;border-radius:6px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;margin-bottom:8px}.step h4{margin:0 0 4px;font-size:13px}.step p{margin:0;font-size:12px;color:var(--mut)}
+.kpi .v{font-size:22px;font-weight:700}.kpi .k{font-size:12px;color:var(--mut)}
+.footer{border-top:1px solid var(--line);color:var(--dim);font-size:12.5px;padding:20px 0 60px}
+.disc{font-size:12px;color:var(--dim);border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+</style></head><body>
+
+<header><div class="wrap">
+<span class="badge">● Reference architecture · ~100 users · central analysis & decisioning · India</span>
+<h1>Business X-Ray — production deployment</h1>
+<p class="lead">From today's client-side demo to a governed platform: a <b>thin client</b> in the field, a <b>central "decipher" server</b> that runs multimodal extraction → the Business X-Ray engine → external triangulation → decision-support, and a <b>human review console</b>. Toggle the one big fork — how the AI model runs — to see how the server footprint changes.</p>
+</div></header>
+
+<div class="wrap">
+
+<!-- Direct answers -->
+<section><div class="grid c3">
+  <div class="card"><h3>What the client needs</h3>
+    <p class="small muted">Almost nothing. A modern browser (Chrome/Safari) on an Android phone or laptop, camera permission, and internet. Ship it as an <b>installable PWA</b> for an app-like feel with offline capture + background sync. <b>No VM, no install</b> on the client.</p>
+    <div class="small dim" style="margin-top:6px">Optional later: a thin Android wrapper for store distribution / device policies.</div></div>
+  <div class="card"><h3>What you run (server)</h3>
+    <p class="small muted">One <b>central server</b> (VM or managed container) hosting the API, the extraction + engine + decision modules, Postgres, encrypted object storage, auth and audit — plus an <b>underwriter console</b>. Add a <b>GPU node only if</b> you self-host the AI model.</p>
+    <div class="small dim" style="margin-top:6px">Put it in an India region (Mumbai) for data residency.</div></div>
+  <div class="card"><h3>Does it need a VM?</h3>
+    <p class="small muted"><b>Yes (or a managed equivalent).</b> With <b>hosted AI</b>, a modest <b>CPU VM</b> is enough — the model is an API call. With <b>self-hosted AI</b> (Ollama/Qwen-VL, sovereign), add a <b>GPU VM</b>. For 100 users the scale is small either way.</p>
+    <div class="small dim" style="margin-top:6px">Managed containers (Render/Railway/ECS/Cloud Run) work too — a VM is not mandatory, just the simplest mental model.</div></div>
+</div></section>
+
+<!-- AI model toggle -->
+<section class="card">
+  <div class="toolbar"><h2 style="margin:0">Deployment model</h2><span class="spacer"></span>
+    <span class="chip on" data-mode="hosted">Hosted AI (API)</span>
+    <span class="chip" data-mode="self">Self-hosted / sovereign (Ollama + Qwen-VL)</span>
+  </div>
+  <div id="modeNote" class="callout"></div>
+  <div class="grid c3" style="margin-top:12px">
+    <div class="card kpi"><span class="k">App/API VM</span><span class="v" id="mAppVM">—</span><span class="small dim" id="mAppNote"></span></div>
+    <div class="card kpi"><span class="k">GPU node</span><span class="v" id="mGPU">—</span><span class="small dim" id="mGPUNote"></span></div>
+    <div class="card kpi"><span class="k">Data leaves premises?</span><span class="v" id="mData">—</span><span class="small dim" id="mDataNote"></span></div>
+  </div>
+</section>
+
+<!-- Diagram -->
+<section><h2>The complete picture</h2>
+<div class="diagram" style="margin-top:12px">
+  <div class="tier"><div class="lbl">1 · Client (field officer / borrower)</div>
+    <div class="row">
+      <div class="box"><h4>PWA in browser <span class="tag b">thin</span></h4><p>Guided capture (camera), consent capture, offline queue → sync. No install/VM.</p></div>
+      <div class="box"><h4>Camera + mic</h4><p>Photos of premises/docs; optional voice (Sarvam) for vernacular.</p></div>
+      <div class="box"><h4>Auth</h4><p>Sign-in (OIDC); role = field officer.</p></div>
+    </div></div>
+  <div class="arrow">▼ &nbsp; HTTPS / TLS</div>
+  <div class="tier"><div class="lbl">2 · Edge / gateway</div>
+    <div class="row">
+      <div class="box"><h4>CDN + WAF + TLS</h4><p>Cloudflare or managed LB; rate-limit, DDoS, cert.</p></div>
+      <div class="box"><h4>API gateway / authN-authZ</h4><p>OIDC (Keycloak/Auth0); RBAC: officer · underwriter · admin.</p></div>
+    </div></div>
+  <div class="arrow">▼</div>
+  <div class="tier" style="border-color:color-mix(in srgb,var(--brand) 45%,transparent)"><div class="lbl">3 · Central "decipher" server — the core module</div>
+    <div class="row">
+      <div class="box core"><h4>Ingestion + consent</h4><p>Receives photos/context; records purpose-limited consent (DPDP/AA).</p></div>
+      <div class="box core"><h4>Multimodal extraction — g(·) <span class="tag v" id="modelTag">VLM API</span></h4><p id="modelBox">Reads photos/docs → GSTIN, meter no., VPA, amounts, counts + confidence.</p></div>
+      <div class="box core"><h4>Business X-Ray engine</h4><p>Scenario intervals, simplified P&amp;L, WCR/trade cycle, IRI, next-evidence.</p></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="box core"><h4>External triangulation</h4><p>Account Aggregator (via regulated TSP), GST, utility, Perfios — concordance/conflict.</p></div>
+      <div class="box core"><h4>Decision-support</h4><p>Deterministic <b>rules engine</b> + validated <b>scorecard</b> → recommendation &amp; reason codes. <b>Never auto-approves.</b></p></div>
+      <div class="box core"><h4>Human review console</h4><p>Underwriter queue: evidence graph, overrides, sanction; borderline/vulnerable → human.</p></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="box"><h4>Governance</h4><p>Model registry/versioning, full audit log, reason codes, override tracking.</p></div>
+      <div class="box"><h4>Notifications</h4><p>Voice/SMS/WhatsApp (Twilio/Sarvam) — reminders, status, financial literacy.</p></div>
+    </div></div>
+  <div class="arrow">▼</div>
+  <div class="tier"><div class="lbl">4 · Data &amp; secrets</div>
+    <div class="row">
+      <div class="box"><h4>Postgres</h4><p>Cases, evidence graph, decisions, audit.</p></div>
+      <div class="box"><h4>Object storage (encrypted)</h4><p>Photos/docs; retention + deletion policy.</p></div>
+      <div class="box"><h4>Secrets vault</h4><p>API keys, DB creds, AA tokens.</p></div>
+      <div class="box"><h4>Backups + monitoring</h4><p>Snapshots, logs, alerts.</p></div>
+    </div></div>
+  <div class="overlay" style="margin-top:12px"><b>Compliance overlay (spans everything):</b> DPDP Act 2023 (consent, minimisation, retention, deletion) · RBI Digital Lending Directions 2025 + FREE-AI (auditable assessment, explainability, human accountability) · Account Aggregator Master Direction (granular, revocable consent). The regulated lender retains final accountability.</div>
+</div></section>
+
+<!-- Component table -->
+<section class="card"><h2>Components &amp; suggested tech</h2>
+<table><thead><tr><th>Layer</th><th>Component</th><th>Options</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Client</td><td>Field app</td><td>PWA (the current single-file app, hardened) · optional Capacitor/Android wrapper</td><td>Offline capture + sync; camera; consent screens</td></tr>
+<tr><td>Edge</td><td>Gateway</td><td>Cloudflare / Nginx / managed LB + WAF</td><td>TLS, rate-limit, routing</td></tr>
+<tr><td>Auth</td><td>Identity</td><td>Keycloak (self-host) · Auth0 / Cognito</td><td>OIDC, RBAC, MFA for staff</td></tr>
+<tr><td>Core</td><td>API + orchestration</td><td>FastAPI (Python) or Node/NestJS</td><td>Hosts engine + workflow; the existing JS engine ports directly</td></tr>
+<tr><td>Core</td><td>Extraction (g·)</td><td><b>Hosted:</b> Claude / GPT-5 / Gemini vision · <b>Self-host:</b> Ollama or vLLM + Qwen2.5-VL</td><td>Confidence + human confirm; audit every read</td></tr>
+<tr><td>Core</td><td>Decisioning</td><td>Rules engine (JSON/DSL) + scorecard (logistic/GBM)</td><td>Deterministic; explainable; AI recommends only</td></tr>
+<tr><td>Data</td><td>Database</td><td>Postgres (managed: RDS/Cloud SQL/Neon)</td><td>Cases, audit, evidence graph</td></tr>
+<tr><td>Data</td><td>Object storage</td><td>S3 / GCS / R2 (encrypted, India region)</td><td>Photos/docs; lifecycle + deletion</td></tr>
+<tr><td>External</td><td>Consented data</td><td>Account Aggregator via regulated TSP · Perfios · GST · utility</td><td>Explicit consent; logged</td></tr>
+<tr><td>Ops</td><td>Runtime</td><td>Docker Compose (simple) or Kubernetes (later)</td><td>CI/CD, monitoring (Grafana/Sentry), backups</td></tr>
+</tbody></table></section>
+
+<!-- Sizing -->
+<section class="card"><h2>Sizing for ~100 users</h2>
+<p class="muted small">100 field users ≈ 10–20 concurrent, tens–low-hundreds of cases/day. This is <b>small</b> — one well-sized node plus managed Postgres carries it.</p>
+<table style="margin-top:8px"><thead><tr><th>Path</th><th>App / API</th><th>Model</th><th>DB / storage</th><th>Indicative infra cost</th></tr></thead><tbody>
+<tr><td><b>Hosted AI</b></td><td>1× CPU VM 4 vCPU / 16 GB (or managed container)</td><td>API (per-token) — Claude/GPT-5/Gemini</td><td>Managed Postgres (small) + object storage</td><td>Low fixed infra; variable per-token AI cost</td></tr>
+<tr><td><b>Self-hosted</b></td><td>1× CPU VM 8 vCPU / 32 GB</td><td>+ 1× GPU 24–48 GB VRAM (Qwen-VL 7–32B via Ollama/vLLM); or on-prem GPU box</td><td>Same</td><td>Higher fixed infra; ~zero marginal AI cost; data stays in</td></tr>
+</tbody></table>
+<div class="callout g" style="margin-top:10px"><b>Recommended for a pilot:</b> start <b>hosted-AI</b> on one small VM (fastest to stand up, cheapest fixed cost), keep the model behind an interface so you can swap in <b>self-hosted Qwen-VL</b> later for sovereignty without changing the app.</div>
+</section>
+
+<!-- Phased -->
+<section><h2>Phased rollout from today's demo</h2>
+<div class="grid c3" style="margin-top:12px">
+  <div class="step"><div class="n">1</div><h4>Backend + auth</h4><p>Stand up FastAPI + Postgres on a VM; move the engine + audit server-side; add OIDC roles; persist cases. (Current static app becomes the PWA front-end.)</p></div>
+  <div class="step"><div class="n">2</div><h4>Real extraction + console</h4><p>Wire the VLM (API or Ollama/Qwen-VL) for g(·); build the underwriter review/override console.</p></div>
+  <div class="step"><div class="n">3</div><h4>Consented data + decisioning</h4><p>AA (via TSP) + GST + utility + Perfios; rules engine + validated scorecard; reason codes.</p></div>
+  <div class="step"><div class="n">4</div><h4>Harden &amp; scale</h4><p>Encryption, backups, monitoring, pen-test, DPDP/RBI sign-off; roll out to 100 users.</p></div>
+  <div class="step"><div class="n">5</div><h4>Sovereign option</h4><p>Swap hosted model for on-prem/GPU Qwen-VL if data-residency demands it — same interface.</p></div>
+  <div class="step"><div class="n">6</div><h4>Voice layer</h4><p>Add Sarvam for Marathi/Hindi voice application + reminders (Twilio telephony).</p></div>
+</div></section>
+
+<div class="disc">Indicative reference architecture for a ~100-user pilot as of Aug 2026; component choices and sizing should be validated against your actual volumes, security review and regulatory sign-off. Business X-Ray outputs remain human-supervised first-pass assessments — not a validated credit-scoring model, and never an autonomous credit decision.</div>
+
+</div>
+<footer class="footer"><div class="wrap">Business X-Ray deployment architecture · thin client (PWA) + central decipher server + human review · DPDP 2023 / RBI DLG 2025 / FREE-AI aligned.</div></footer>
+
+<script>
+const MODES={
+  hosted:{note:'<b>Hosted AI (API).</b> The model is a call to Claude / GPT-5 / Gemini. Your server just orchestrates — so a modest CPU VM is enough and there is no GPU to run. Fastest to launch and cheapest fixed cost; borrower data is sent to the AI provider (use enterprise / no-train tiers and an India region where offered).',
+    appVM:'CPU · 4 vCPU / 16 GB', appNote:'app + engine + DB client', gpu:'None', gpuNote:'model is an API call', data:'Yes → AI API', dataNote:'use no-train enterprise tier', tag:'VLM API', box:'Reads photos/docs via a hosted vision-language API → GSTIN, meter no., VPA, amounts, counts + confidence.'},
+  self:{note:'<b>Self-hosted / sovereign.</b> Run Qwen2.5-VL under Ollama or vLLM on your own GPU — borrower data never leaves your premises (strong for DPDP / RBI residency). Higher fixed infra and ops, ~zero marginal AI cost, and a quality gap vs frontier that the human-in-the-loop covers.',
+    appVM:'CPU · 8 vCPU / 32 GB', appNote:'app + engine + orchestration', gpu:'GPU · 24–48 GB VRAM', gpuNote:'Qwen-VL 7–32B (Ollama/vLLM)', data:'No — stays in', dataNote:'on-prem / India VPC', tag:'Qwen-VL (local)', box:'Reads photos/docs via a local Qwen-VL model (Ollama/vLLM) on your GPU → fields + confidence; nothing leaves the premises.'}
+};
+function setMode(m){const d=MODES[m];
+  document.getElementById('modeNote').innerHTML=d.note;
+  document.getElementById('mAppVM').textContent=d.appVM; document.getElementById('mAppNote').textContent=d.appNote;
+  document.getElementById('mGPU').textContent=d.gpu; document.getElementById('mGPUNote').textContent=d.gpuNote;
+  document.getElementById('mData').textContent=d.data; document.getElementById('mDataNote').textContent=d.dataNote;
+  document.getElementById('modelTag').textContent=d.tag; document.getElementById('modelBox').textContent=d.box;
+}
+document.querySelectorAll('.chip[data-mode]').forEach(c=>c.onclick=()=>{document.querySelectorAll('.chip[data-mode]').forEach(x=>x.classList.remove('on'));c.classList.add('on');setMode(c.dataset.mode);});
+setMode('hosted');
+</script>
+</body></html>

@@ -1,0 +1,16 @@
+# Cloudflare Worker config for Business X-Ray
+# Deploy:  wrangler deploy      (or paste worker.js into the dashboard editor)
+name = "business-xray"
+main = "worker.js"
+compatibility_date = "2025-08-01"
+
+# Serve on your domain. Requires the zone (litehouseiq.com) to be on this
+# Cloudflare account. Remove/adjust if you only want the *.workers.dev URL.
+# routes = [
+#   { pattern = "litehouseiq.com/*", zone_name = "litehouseiq.com" },
+#   { pattern = "www.litehouseiq.com/*", zone_name = "litehouseiq.com" },
+# ]
+
+# No bindings needed — the app is fully self-contained (in-Worker engine).
+# Optional: enable the workers.dev preview URL.
+workers_dev = true
