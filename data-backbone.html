@@ -1,0 +1,293 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Phone Se Loan — Data Backbone (Business X-Ray)</title>
+<style>
+:root{
+  --bg:#f4f6fb; --card:#ffffff; --line:#e3e7ef; --line2:#eef1f7;
+  --ink:#1a2233; --mut:#5b6478; --dim:#8a93a6;
+  --brand:#2f6bff; --brand-ink:#1c49c9;
+  --navy1:#0f1b3d; --navy2:#1b2b57;
+  --ok:#0c6b3f; --okbg:#e7f6ee; --bad:#8f1d31; --badbg:#fbe1e6; --warnbg:#fdf3e1; --warn:#8a5a00;
+  --obs:#1c49c9; --claim:#8a5a00; --bench:#6b3fb0; --ext:#0c6b3f; --gap:#8f1d31;
+  --sans:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--mono)}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+/* header */
+header.psl{background:linear-gradient(120deg,var(--navy1),var(--navy2));color:#fff}
+header.psl .wrap{display:flex;align-items:center;gap:12px;min-height:54px;padding-top:8px;padding-bottom:8px;flex-wrap:wrap}
+header.psl .title{font-weight:700;font-size:17px;letter-spacing:.1px}
+header.psl .sub{color:#c7d0e6;font-size:12px}
+header.psl .right{margin-left:auto;text-align:right;color:#aeb9d6;font-size:11.5px;max-width:520px}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px}
+.badge.live{background:var(--okbg);color:var(--ok)}
+.badge.stage{background:rgba(255,255,255,.14);color:#fff}
+/* tab nav */
+.psl-nav{background:#fff;border-bottom:1px solid var(--line)}
+.psl-nav .wrap{display:flex;gap:8px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+.tab{font-size:12.5px;color:var(--mut);background:#fff;border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer;text-decoration:none;display:inline-block}
+.tab.active{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600}
+.tab:hover:not(.active){border-color:#c9d2e6}
+/* chips row (state cases / context) */
+.chiprow{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.statechip{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;color:var(--ink)}
+.statechip.active{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+/* sections + cards */
+section{padding:18px 0}
+h1{font-size:22px;margin:.1em 0 .3em;letter-spacing:-.2px}
+h2{font-size:16px;margin:0 0 .4em}
+h3{font-size:12px;margin:14px 0 7px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+p.lead{font-size:15px;color:var(--mut);max-width:80ch;margin:.2em 0 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card.tight{padding:12px}
+.grid{display:grid;gap:14px}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.cols-2,.cols-3,.cols-4{grid-template-columns:1fr}}
+.note{font-size:13px;color:var(--mut)}
+.small{font-size:12px}
+.dim{color:var(--dim)}
+.hl{color:var(--brand-ink)}
+.spacer{flex:1}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+/* stat chips (FMV/CRIF style) */
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:120px}
+.stat .k{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block}
+.stat .v{font-size:16px;font-weight:700;letter-spacing:-.3px}
+/* KPI tiles */
+.kpi .k{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block}
+.kpi .v{font-size:20px;font-weight:700;letter-spacing:-.3px}
+/* numbered stepper */
+.stepcard{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:9px;background:#fff}
+.stepcard .num{flex:none;width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;font-weight:700;font-size:11px;display:grid;place-items:center;border:2px solid var(--brand)}
+.stepcard .body{flex:1}
+.stepcard .t{font-weight:600;font-size:13.5px}
+/* tags (node classes) */
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:5px}
+.tag.Observed{color:var(--obs);background:#e8eefc}
+.tag.Claim{color:var(--claim);background:var(--warnbg)}
+.tag.Benchmark{color:var(--bench);background:#efe8fb}
+.tag.External{color:var(--ext);background:var(--okbg)}
+.tag.Derived{color:#0f6d78;background:#e0f5f7}
+.tag.Gap{color:var(--gap);background:var(--badbg)}
+/* driver rows */
+.driver{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.driver .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.driver .name{font-weight:600;font-size:13px}
+/* evidence + docs */
+.evidence-item{display:flex;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;background:#fff}
+.evidence-item.top{border-color:#bcd0ff;box-shadow:0 0 0 1px #dbe6ff inset}
+.doc{display:flex;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;background:#fff;font-size:13px}
+.verdict{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px}
+.verdict.concordant{color:var(--ok);background:var(--okbg)}
+.verdict.partial{color:var(--warn);background:var(--warnbg)}
+.verdict.conflict{color:var(--bad);background:var(--badbg)}
+/* callout */
+.callout{border:1px solid var(--line);border-left:3px solid var(--brand);background:#fbfcff;padding:11px 13px;border-radius:0 9px 9px 0;font-size:12.5px;color:var(--ink)}
+.callout.ext{border-left-color:var(--ext);background:#f6fdf9}
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line2);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+/* select */
+.select{background:#fff;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:9px 12px;font-size:14px}
+.select:focus{outline:2px solid #bcd0ff;border-color:var(--brand)}
+.pill{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--mut);cursor:pointer}
+.pill.on{background:#e8eefc;border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+.empty{min-height:200px;border:1.5px dashed var(--line);border-radius:12px;display:grid;place-items:center;text-align:center;color:var(--dim);background:#fff}
+.footer{border-top:1px solid var(--line);color:var(--dim);font-size:12px;padding:20px 0 44px;margin-top:22px}
+
+.dbwrap{max-width:1200px}
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:14px 0}
+@media(max-width:900px){.summary{grid-template-columns:1fr 1fr}}
+.sumtile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.sumtile .k{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block}
+.sumtile .v{font-size:22px;font-weight:700;letter-spacing:-.3px}
+.cappanel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin:6px 0 4px}
+.keygrp{margin-top:8px}
+.keygrp .gl{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;font-weight:700;display:block;margin-bottom:6px}
+.keychips{display:flex;gap:7px;flex-wrap:wrap}
+.keychip{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+.keychip.on{border-color:var(--ext);background:var(--okbg);color:var(--ext);font-weight:600}
+.keychip .n{font-size:10px;color:var(--dim);background:#eef1f7;border-radius:999px;padding:1px 6px}
+.keychip.on .n{background:#cfeeda;color:var(--ext)}
+.prompt{border:1px solid #e7c98a;background:#fffaf0;border-radius:10px;padding:11px 13px;margin-top:10px;font-size:12.5px;color:var(--ink)}
+.catsec{margin-top:22px}
+.cathead{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.cathead h2{font-size:16px;margin:0}
+.cathead .cb{font-size:11.5px;color:var(--mut);background:#eef1f7;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:1000px){.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:680px){.cards{grid-template-columns:1fr}}
+.src{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:7px;box-shadow:0 6px 18px rgba(20,30,60,.05)}
+.src.pulled{border-color:#bcd0ff;box-shadow:0 0 0 1px #dbe6ff inset,0 6px 18px rgba(20,30,60,.06)}
+.src.locked{opacity:.72;background:#fbfcfe}
+.src .nm{font-weight:700;font-size:13.5px;line-height:1.3}
+.src .badges{display:flex;gap:6px;flex-wrap:wrap}
+.sbx{font-size:10px;font-weight:700;color:var(--warn);background:var(--warnbg);border:1px solid #f0e2c4;border-radius:5px;padding:2px 7px}
+.lock{font-size:10px;font-weight:700;color:var(--bad);background:var(--badbg);border-radius:5px;padding:2px 7px}
+.pub{font-size:10px;font-weight:700;color:var(--ok);background:var(--okbg);border-radius:5px;padding:2px 7px}
+.meta{font-size:11.5px;color:var(--mut);line-height:1.5}
+.meta b{color:var(--ink);font-weight:600}
+.confrow{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.confchip{font-size:10px;font-weight:600;color:var(--ext);background:var(--okbg);border-radius:5px;padding:2px 7px}
+.needchip{font-size:10.5px;font-weight:600;color:var(--warn);background:var(--warnbg);border:1px solid #f0e2c4;border-radius:5px;padding:2px 7px}
+.pullbtn{margin-top:auto;align-self:flex-start;font-size:12px;font-weight:600;border:1px solid var(--brand);background:var(--brand);color:#fff;border-radius:8px;padding:7px 12px;cursor:pointer}
+.pullbtn.done{background:#fff;color:var(--ok);border-color:var(--ok);cursor:default}
+.pullbtn.blocked{background:#fff;color:var(--dim);border-color:var(--line);cursor:not-allowed}
+.result{font-family:var(--mono);font-size:11.5px;background:#f6f8fd;border:1px dashed #bcd0ff;border-radius:8px;padding:8px 9px;color:var(--ink)}
+.ptrack{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.ptrack .p{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--dim)}
+.ptrack .p.on{border-color:var(--ext);color:var(--ext);background:var(--okbg);font-weight:600}
+</style></head><body>
+<div id="pslGate" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(120deg,#0f1b3d,#1b2b57);display:flex;align-items:center;justify-content:center;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif">
+  <div style="background:#fff;border-radius:16px;padding:30px 28px;max-width:360px;width:90%;box-shadow:0 24px 70px rgba(0,0,0,.4);text-align:center">
+    <div style="display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:15px;color:#1a2233"><span style="background:linear-gradient(135deg,#2f6bff,#0f6d78);color:#fff;border-radius:7px;padding:3px 8px;font-size:12px">PSL</span> Phone Se Loan</div>
+    <div style="font-weight:700;font-size:17px;color:#1a2233;margin:12px 0 2px">Business X-Ray</div>
+    <div style="color:#5b6478;font-size:13px;margin:2px 0 16px">Enter the access code to continue</div>
+    <input id="pslGateCode" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" style="width:100%;text-align:center;letter-spacing:8px;font-size:22px;padding:11px;border:1px solid #e3e7ef;border-radius:11px;outline:none"/>
+    <div id="pslGateErr" style="color:#8f1d31;font-size:12px;height:16px;margin:7px 0"></div>
+    <button id="pslGateBtn" style="width:100%;background:#2f6bff;color:#fff;border:none;border-radius:11px;padding:12px;font-weight:700;font-size:15px;cursor:pointer">Unlock</button>
+    <div style="color:#8a93a6;font-size:11px;margin-top:14px;line-height:1.4">Demonstration access gate — not a substitute for authenticated login.</div>
+  </div></div>
+  <script>(function(){var CODE="1504";
+  try{if(sessionStorage.getItem('psl_gate_ok')==='1'){var g0=document.getElementById('pslGate');if(g0)g0.remove();return;}}catch(e){}
+  var g=document.getElementById('pslGate'),i=document.getElementById('pslGateCode'),b=document.getElementById('pslGateBtn'),er=document.getElementById('pslGateErr');
+  function ok(){try{sessionStorage.setItem('psl_gate_ok','1');}catch(e){}g&&g.remove();}
+  function tryUnlock(){if(i.value.trim()===CODE){ok();}else{er.textContent='Incorrect code';i.value='';i.focus();}}
+  b&&(b.onclick=tryUnlock);i&&i.addEventListener('keydown',function(e){if(e.key==='Enter')tryUnlock();});i&&i.focus();})();</script>
+<header class="psl"><div class="wrap">
+    <span class="title">Phone Se Loan</span>
+    <span class="badge stage">Data Backbone</span>
+    <span class="badge live">● BUSINESS X-RAY</span>
+    <span class="right">Redacted, consent-based external sources — available only for the items the Mitra has captured · sandbox (mock) until go-live</span>
+  </div></header>
+<nav class="psl-nav"><div class="wrap">
+  <a class="tab" href="/capture">Capture</a>
+  <a class="tab" href="/industries">Industry Models</a>
+  <a class="tab" href="/app">Assessment</a>
+  <a class="tab active" href="/data-backbone">Data Backbone</a>
+  <a class="tab" href="/terms">Terms &amp; Consent</a>
+</div></nav>
+<main><div class="wrap dbwrap">
+<section style="padding-bottom:6px">
+  <h1>Data Backbone — external evidence the X-Ray consumes</h1>
+  <p class="lead">Beyond the on-site photos, the Business X-Ray reconciles against India's digital-public-infrastructure rails. A source is <b>available only when the Mitra has captured the item that carries its linkage key</b> — the GST board unlocks GST/GSTIN, the merchant QR unlocks the Account-Aggregator bank pull, the Udyam/licence unlock the registries, and the KYC/property documents unlock identity and collateral. Where a source is still locked, the Mitra is <b>prompted to capture that item</b>. Everything is <b>sandbox (mock)</b> and returned <b>redacted</b>; sensitive pulls are consent-gated.</p>
+  <div class="summary" id="summary"></div>
+
+  <div class="cappanel">
+    <div class="toolbar" style="margin:0"><b style="font-size:13.5px">Captured by the Mitra</b><span class="spacer"></span><span class="small dim">tick what was photographed / collected — premises items pre-fill from the capture session</span></div>
+    <div id="keyItems"></div>
+    <div id="prompt"></div>
+  </div>
+
+  <div style="margin-top:12px">
+    <span class="small dim" style="text-transform:uppercase;letter-spacing:.4px;font-weight:700">Underwriting profiles confirmed as you pull</span>
+    <div class="ptrack" id="ptrack"></div>
+  </div>
+</section>
+<div id="cats"></div>
+</div></main>
+<footer class="footer"><div class="wrap">
+  Phone Se Loan AI Operating System · Business X-Ray · Data Backbone — sandbox (mock), redacted, gated by captured evidence. Go-live connects UIDAI / GSTN / Account Aggregator / bureaus / ULI / DoLR as listed. Loan approval &amp; disbursement remain human-only.
+</div></footer>
+<script>
+const DB={"note":"Business X-Ray Data Backbone — external source registry. All sources are SANDBOX (mock) and returned in REDACTED form until go-live. Consumed by the X-Ray Underwriting Agent via the Tool Router; contributes signals to the assessment and downstream underwriting profiles. Sensitive pulls (AA, bureau, KYC) are consent-gated. Each source is AVAILABLE only when the Mitra has captured the item(s) that carry its linkage key (see requires / keyItems); otherwise the Mitra is prompted to capture more.","profiles":{"mitra":"Mitra Customer Profile","cpv":"CPV Residence PD","acm":"ACM Business PD","rcu":"RCU Property PD","bureau":"CRIF Bureau","sustain":"Sustainable Profile","banking":"Banking scorecard","postdib":"Post-disbursement monitoring"},"categories":[{"id":"kyc","label":"Identity & KYC","consent":"eKYC / OKYC consent"},{"id":"income","label":"Income & tax","consent":"AA / taxpayer consent"},{"id":"registry","label":"Business & registry","consent":"public / business registry"},{"id":"behaviour","label":"Behaviour & repayment","consent":"bureau / AA consent"},{"id":"collateral","label":"Collateral & land","consent":"property / registry"},{"id":"compliance","label":"Compliance & schemes","consent":"screening"},{"id":"monitoring","label":"Monitoring & collections","consent":"recurring consent"},{"id":"digital","label":"Digital footprint","consent":"public / platform"},{"id":"uli","label":"ULI (Unified Lending Interface)","consent":"RBIH ULI"},{"id":"legal","label":"Legal & litigation","consent":"public records"}],"sources":[{"id":"aadhaar","cat":"kyc","name":"Aadhaar eKYC / OKYC","feeds":"Onboarding · KYC identity","cam":"§1 Applicant · §2 KYC/consent","monitors":"Re-KYC / periodic KYC refresh","golive":"UIDAI via ULI Auth Suite (consent-based)","confirms":["mitra","cpv"],"consentGated":true,"mock":"XXXX-XXXX-1234 · name/DOB/addr match ✓ (masked)","requires":["aadhaar_doc"]},{"id":"pan","cat":"kyc","name":"PAN Verification","feeds":"Onboarding · KYC · GSTIN link","cam":"§1 Applicant · §2 KYC/consent","monitors":"Re-KYC / periodic KYC refresh","golive":"Protean / Income Tax via ULI","confirms":["mitra"],"consentGated":true,"mock":"ABCDE1234F · active · name match ✓","requires":["pan_doc"]},{"id":"dl","cat":"kyc","name":"Driving Licence","feeds":"Background check · identity","cam":"§1 Applicant · §2 KYC/consent","monitors":"Re-KYC / periodic KYC refresh","golive":"Sarathi / Parivahan (MoRTH)","confirms":["mitra"],"consentGated":true,"mock":"MH0X…1234 · valid to 2031 (masked)","requires":["dl_doc"]},{"id":"facematch","cat":"kyc","name":"Face Match / Liveness","feeds":"Background check · fraud","cam":"§1 Applicant · §2 KYC/consent","monitors":"Re-KYC / periodic KYC refresh","golive":"NPCI / licensed vendor","confirms":["mitra"],"consentGated":true,"mock":"liveness pass · match 0.97 (no image stored)","requires":["face"]},{"id":"dhruva","cat":"kyc","name":"DHRUVA Digital Address","feeds":"Background check · residence","cam":"§1 Applicant · §2 KYC/consent","monitors":"Re-KYC / periodic KYC refresh","golive":"DHRUVA (Dept. of Posts)","confirms":["mitra","sustain","cpv"],"consentGated":true,"mock":"digital address code · geolocated ✓ (masked)","requires":["aadhaar_doc"]},{"id":"gst_returns","cat":"income","name":"GST Returns (GSTR-1, GSTR-3B)","feeds":"Eligibility · verified turnover","cam":"§6 Income & eligibility","monitors":"Turnover / income drift → EWS","golive":"GSP / GSTN","confirms":["mitra","sustain","acm","postdib"],"consentGated":true,"mock":"12-mo turnover band · filing regular ✓","requires":["gst_board"]},{"id":"itr","cat":"income","name":"Income Tax Returns","feeds":"Eligibility · declared income","cam":"§6 Income & eligibility","monitors":"Turnover / income drift → EWS","golive":"Income Tax Dept (e-filing)","confirms":["mitra"],"consentGated":true,"mock":"AY declared income band · ITR-verified","requires":["pan_doc"]},{"id":"demat","cat":"income","name":"Equities / Demat Holdings","feeds":"Eligibility · assets/liquidity","cam":"§6 Income & eligibility","monitors":"Turnover / income drift → EWS","golive":"CDSL / NSDL via AA","confirms":["mitra"],"consentGated":true,"mock":"holdings value band (masked)","requires":["qr_code"]},{"id":"aa_bank","cat":"income","name":"AA Bank Statements","feeds":"Eligibility · verified cash-flow","cam":"§6 Income & eligibility","monitors":"Turnover / income drift → EWS","golive":"Account Aggregator (Sahamati / FIP) — consent-based","confirms":["mitra","sustain","banking","acm"],"consentGated":true,"mock":"avg monthly credits · inflow stability · bounce count","requires":["qr_code"]},{"id":"aa_mf","cat":"income","name":"AA Mutual-Fund Holdings","feeds":"Eligibility · assets/liquidity","cam":"§6 Income & eligibility","monitors":"Turnover / income drift → EWS","golive":"Account Aggregator (RTA / CAMS-KFin via AA)","confirms":["mitra","cpv"],"consentGated":true,"mock":"folio value band (masked)","requires":["qr_code"]},{"id":"aa_insurance","cat":"income","name":"AA Insurance Policies","feeds":"Eligibility · protection/obligation","cam":"§6 Income & eligibility","monitors":"Turnover / income drift → EWS","golive":"Account Aggregator (insurers via AA)","confirms":["mitra","sustain","cpv"],"consentGated":true,"mock":"in-force policies · premium outgo band","requires":["qr_code"]},{"id":"aa_nps","cat":"income","name":"AA NPS / EPFO Passbook","feeds":"Eligibility · savings continuity","cam":"§6 Income & eligibility","monitors":"Turnover / income drift → EWS","golive":"Account Aggregator (NPS-CRA / EPFO via AA)","confirms":["mitra"],"consentGated":true,"mock":"contribution continuity · balance band","requires":["qr_code"]},{"id":"gstin_reg","cat":"registry","name":"GSTIN Registration","feeds":"Eligibility · KYC link","cam":"§1 Applicant · §4 Business","monitors":"Registration / vintage lapse watch","golive":"GSTN","confirms":["mitra","acm"],"consentGated":false,"mock":"GSTIN active · reg date · principal place ✓","requires":["gst_board"]},{"id":"udyam","cat":"registry","name":"Udyam Registration","feeds":"Business stability · scheme","cam":"§1 Applicant · §4 Business","monitors":"Registration / vintage lapse watch","golive":"Udyam (MoMSME)","confirms":["mitra","acm"],"consentGated":false,"mock":"Udyam no. · Micro/Small · NIC code ✓","requires":["udyam"]},{"id":"epfo_estab","cat":"registry","name":"EPFO Establishment","feeds":"Business stability · scale","cam":"§1 Applicant · §4 Business","monitors":"Registration / vintage lapse watch","golive":"EPFO","confirms":["mitra","acm"],"consentGated":false,"mock":"establishment active · employee count band","requires":["udyam"]},{"id":"shop_estab","cat":"registry","name":"Shop & Establishment Act","feeds":"Background check · premises","cam":"§1 Applicant · §4 Business","monitors":"Registration / vintage lapse watch","golive":"State Labour Dept","confirms":["mitra","sustain","acm"],"consentGated":false,"mock":"S&E licence valid · premises registered ✓","requires":["licence"]},{"id":"fssai","cat":"registry","name":"FSSAI Licence","feeds":"Business stability · compliance","cam":"§1 Applicant · §4 Business","monitors":"Registration / vintage lapse watch","golive":"FSSAI FoSCoS","confirms":["mitra"],"consentGated":false,"mock":"FSSAI licence valid to 2027 ✓","requires":["licence"]},{"id":"bureau","cat":"behaviour","name":"Credit Bureaus (CIBIL · Experian · CRIF · Equifax)","feeds":"Underwriting · repayment history","cam":"§2 Bureau · §3 PD · §6 FOIR","monitors":"Repayment / bounce → EWS & IRACP","golive":"TransUnion CIBIL / Experian / CRIF High Mark / Equifax","confirms":["bureau"],"consentGated":true,"mock":"score band · live obligations · DPD history","requires":["pan_doc"]},{"id":"upi","cat":"behaviour","name":"UPI Transaction Patterns","feeds":"Eligibility · cash-flow","cam":"§2 Bureau · §3 PD · §6 FOIR","monitors":"Repayment / bounce → EWS & IRACP","golive":"NPCI / AA","confirms":["mitra","sustain","banking","acm"],"consentGated":true,"mock":"UPI velocity · inflow days/mo · counterparties","requires":["qr_code"]},{"id":"telecom","cat":"behaviour","name":"Telecom Payment History","feeds":"Alt-data · conduct","cam":"§2 Bureau · §3 PD · §6 FOIR","monitors":"Repayment / bounce → EWS & IRACP","golive":"DoT / TSPs","confirms":["sustain"],"consentGated":true,"mock":"recharge/bill regularity band","requires":["aadhaar_doc"]},{"id":"ulpin","cat":"collateral","name":"Bhu-Aadhaar / ULPIN","feeds":"Collateral · title","cam":"§7 Collateral & title","monitors":"Collateral revaluation / charge review","golive":"DoLR (Digital India Land Records)","confirms":["rcu"],"consentGated":false,"mock":"ULPIN · parcel · owner match (masked)","requires":["property_doc"]},{"id":"prop_tax","cat":"collateral","name":"Property Tax Records","feeds":"Collateral · ownership","cam":"§7 Collateral & title","monitors":"Collateral revaluation / charge review","golive":"ULB / municipal","confirms":["mitra","cpv","rcu","acm"],"consentGated":false,"mock":"assessee · dues status · usage type","requires":["property_doc"]},{"id":"cersai","cat":"collateral","name":"CERSAI Registry","feeds":"Collateral · existing charges","cam":"§7 Collateral & title","monitors":"Collateral revaluation / charge review","golive":"CERSAI","confirms":["rcu"],"consentGated":false,"mock":"existing charges: none/registered (masked)","requires":["property_doc"]},{"id":"igr","cat":"collateral","name":"Stamp Duty / Registration (IGR)","feeds":"Collateral · title chain","cam":"§7 Collateral & title","monitors":"Collateral revaluation / charge review","golive":"State IGR / e-Registration (ULI e-Stamping)","confirms":["rcu"],"consentGated":false,"mock":"registered deed · title chain node (masked)","requires":["property_doc"]},{"id":"uli_cgtmse","cat":"compliance","name":"ULI Credit Guarantee / Schemes","feeds":"Structuring · guarantee","cam":"§8 Recommendation","monitors":"Scheme / negative-list refresh","golive":"ULI / CGTMSE","confirms":[],"consentGated":false,"mock":"CGTMSE eligibility · cover % · scheme fit","requires":["udyam"]},{"id":"neg_lists","cat":"compliance","name":"Negative Lists","feeds":"Background check · sanctions/PEP","cam":"§8 Recommendation","monitors":"Scheme / negative-list refresh","golive":"RBI / SEBI / MCA / UN / internal","confirms":["bureau"],"consentGated":false,"mock":"no adverse hit (screened)","requires":["pan_doc"]},{"id":"crilc","cat":"compliance","name":"RBI Defaulter / CRILC & Wilful-Defaulter Lists","feeds":"Background check · large-exposure default","cam":"§8 Recommendation","monitors":"Scheme / negative-list refresh","golive":"RBI CRILC · TransUnion CIBIL Suit-filed / Wilful-defaulter","confirms":["bureau","postdib"],"consentGated":false,"mock":"no CRILC / wilful-defaulter hit","requires":["pan_doc"]},{"id":"skiptrace","cat":"monitoring","name":"Skip-Tracing (collections)","feeds":"Collections · contactability","cam":"§8 (post-sanction)","monitors":"Collections contactability & recovery","golive":"Telco / bureau / vendor","confirms":["cpv","postdib"],"consentGated":true,"mock":"contactability score (post-sanction only)","requires":["aadhaar_doc"]},{"id":"aa_ongoing","cat":"monitoring","name":"AA Ongoing Consent (cash-flow monitoring)","feeds":"Post-disbursement · cash-flow EWS","cam":"§8 (post-sanction)","monitors":"Collections contactability & recovery","golive":"Account Aggregator — recurring consent (up to 12m)","confirms":["postdib"],"consentGated":true,"mock":"recurring cash-flow feed · EWS trend","requires":["qr_code"]},{"id":"bureau_refresh","cat":"monitoring","name":"Bureau Periodic Refresh","feeds":"Post-disbursement · repayment EWS","cam":"§8 (post-sanction)","monitors":"Collections contactability & recovery","golive":"CRIF / CIBIL / Experian / Equifax — portfolio monitoring","confirms":["postdib"],"consentGated":true,"mock":"score delta · new-obligation alert","requires":["pan_doc"]},{"id":"ecom_ratings","cat":"digital","name":"E-commerce Ratings","feeds":"Business stability · demand","cam":"§4 Business assessment","monitors":"Demand / rating trend → EWS","golive":"ONDC / marketplaces","confirms":["mitra","acm"],"consentGated":false,"mock":"rating · order-volume band · trend","requires":["exterior"]},{"id":"wa_api","cat":"digital","name":"WhatsApp Business API","feeds":"Background check · presence","cam":"§4 Business assessment","monitors":"Demand / rating trend → EWS","golive":"Meta (BSP)","confirms":["mitra"],"consentGated":false,"mock":"verified business presence ✓","requires":["exterior"]},{"id":"wa_analytics","cat":"digital","name":"WhatsApp Business Analytics","feeds":"Business stability · engagement","cam":"§4 Business assessment","monitors":"Demand / rating trend → EWS","golive":"Meta (BSP)","confirms":["mitra","acm"],"consentGated":false,"mock":"message volume · response-rate band","requires":["exterior"]},{"id":"appstore","cat":"digital","name":"App Store Presence","feeds":"Business stability · digital maturity","cam":"§4 Business assessment","monitors":"Demand / rating trend → EWS","golive":"Play Store / App Store","confirms":[],"consentGated":false,"mock":"listed app · installs band (if any)","requires":["exterior"]},{"id":"uli_translit","cat":"uli","name":"ULI Transliteration Services","feeds":"Record-linkage · name standardisation","cam":"§7 Collateral & title","monitors":"Land-record / valuation refresh","golive":"Unified Lending Interface (RBIH)","confirms":["mitra"],"consentGated":false,"mock":"name standardised across records ✓","requires":["exterior"]},{"id":"uli_land","cat":"uli","name":"ULI Digitised Land Records","feeds":"Collateral · title","cam":"§7 Collateral & title","monitors":"Land-record / valuation refresh","golive":"Unified Lending Interface (RBIH)","confirms":["rcu"],"consentGated":false,"mock":"digitised RoR · owner/parcel (masked)","requires":["property_doc"]},{"id":"uli_valuation","cat":"uli","name":"ULI Property Search / Valuation","feeds":"Collateral · LTV","cam":"§7 Collateral & title","monitors":"Land-record / valuation refresh","golive":"Unified Lending Interface (RBIH)","confirms":["rcu"],"consentGated":false,"mock":"indicative market value · LTV input","requires":["property_doc"]},{"id":"ecourts","cat":"legal","name":"e-Courts Litigation Analytics","feeds":"Background check · legal risk","cam":"§1 Applicant · §7 Title","monitors":"Litigation / adverse-event watch","golive":"e-Courts / vendor","confirms":["bureau"],"consentGated":false,"mock":"no adverse case / pending matter (masked)","requires":["pan_doc"]}],"keyItems":[{"id":"exterior","label":"Exterior & signage (business name)","kind":"premises"},{"id":"gst_board","label":"GST board / certificate","kind":"premises"},{"id":"qr_code","label":"UPI / merchant QR (bank linkage)","kind":"premises"},{"id":"utility_meter","label":"Utility meter + consumer no.","kind":"premises"},{"id":"udyam","label":"Udyam certificate","kind":"premises"},{"id":"licence","label":"Trade / FSSAI / factory licence","kind":"premises"},{"id":"aadhaar_doc","label":"Aadhaar (customer KYC)","kind":"kyc"},{"id":"pan_doc","label":"PAN (customer / entity)","kind":"kyc"},{"id":"dl_doc","label":"Driving licence","kind":"kyc"},{"id":"face","label":"Customer selfie / liveness","kind":"kyc"},{"id":"property_doc","label":"Property papers (collateral)","kind":"property"}]};
+const PROF=DB.profiles;
+const KEY=DB.keyItems;
+const KEYBY=Object.fromEntries(KEY.map(k=>[k.id,k]));
+const CATBY=Object.fromEntries(DB.categories.map(c=>[c.id,c]));
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const captured=new Set();     // key items the Mitra has captured
+const pulled=new Set();       // sources pulled
+
+// prefill premises key items from a capture session handoff, if present
+try{ const h=JSON.parse(sessionStorage.getItem('bx_handoff')||'null');
+  if(h&&Array.isArray(h.captured)){ h.captured.forEach(f=>{ if(KEYBY[f]) captured.add(f); }); } }catch(e){}
+
+const available=s=>(s.requires||[]).every(r=>captured.has(r));
+const missingFor=s=>(s.requires||[]).filter(r=>!captured.has(r));
+function confirmedProfiles(){ const set=new Set(); DB.sources.forEach(s=>{ if(pulled.has(s.id)) (s.confirms||[]).forEach(c=>set.add(c)); }); return set; }
+function availCount(){ return DB.sources.filter(available).length; }
+// how many still-locked sources each un-captured key item would help unlock
+function unlockCounts(){ const m={}; KEY.forEach(k=>{ if(captured.has(k.id)) return; m[k.id]=DB.sources.filter(s=>!available(s) && (s.requires||[]).includes(k.id)).length; }); return m; }
+
+function renderSummary(){
+  const total=DB.sources.length, gated=DB.sources.filter(s=>s.consentGated).length;
+  document.getElementById('summary').innerHTML=''
+    +'<div class="sumtile"><span class="k">Sources</span><span class="v">'+total+'</span><span class="small dim">'+DB.categories.length+' categories</span></div>'
+    +'<div class="sumtile"><span class="k">Available now</span><span class="v" id="avail" style="color:var(--ok)">'+availCount()+'</span><span class="small dim">gated by captured items</span></div>'
+    +'<div class="sumtile"><span class="k">Consent-gated</span><span class="v">'+gated+'</span><span class="small dim">KYC · AA · bureau · tax</span></div>'
+    +'<div class="sumtile"><span class="k">Pulled</span><span class="v" id="pcount">'+pulled.size+'</span><span class="small dim">redacted mock signals</span></div>'
+    +'<div class="sumtile"><span class="k">Profiles confirmed</span><span class="v" id="prcount">'+confirmedProfiles().size+'</span><span class="small dim">of '+Object.keys(PROF).length+'</span></div>';
+}
+function renderKeyItems(){
+  const uc=unlockCounts();
+  const grp=(kind,label)=>{ const items=KEY.filter(k=>k.kind===kind); if(!items.length) return '';
+    return '<div class="keygrp"><span class="gl">'+label+'</span><div class="keychips">'+items.map(k=>{
+      const on=captured.has(k.id); const n=on?'':(uc[k.id]?'<span class="n">+'+uc[k.id]+'</span>':'');
+      return '<span class="keychip'+(on?' on':'')+'" data-key="'+k.id+'">'+(on?'✓ ':'')+esc(k.label)+' '+n+'</span>';
+    }).join('')+'</div></div>'; };
+  document.getElementById('keyItems').innerHTML=grp('premises','Premises photos (from capture)')+grp('kyc','KYC documents')+grp('property','Collateral');
+  // prompt: rank uncaptured key items by how many sources they unlock
+  const ranked=KEY.filter(k=>!captured.has(k.id)&&uc[k.id]>0).sort((a,b)=>uc[b.id]-uc[a.id]);
+  document.getElementById('prompt').innerHTML = ranked.length
+    ? '<div class="prompt">❓ <b>Prompt the Mitra to capture more:</b> '+ranked.slice(0,4).map(k=>esc(k.label)+' <b>(unlocks '+uc[k.id]+')</b>').join(' · ')+'. '+availCount()+' of '+DB.sources.length+' sources available so far.</div>'
+    : '<div class="prompt" style="border-color:#bfe6cf;background:#f6fdf9">✓ All linkage keys captured — every source is available to pull.</div>';
+}
+function renderTrack(){ const conf=confirmedProfiles();
+  document.getElementById('ptrack').innerHTML=Object.entries(PROF).map(([k,v])=>'<span class="p'+(conf.has(k)?' on':'')+'">'+(conf.has(k)?'✓ ':'')+esc(v)+'</span>').join(''); }
+function card(s){
+  const avail=available(s), done=pulled.has(s.id), miss=missingFor(s);
+  const conf=(s.confirms||[]).map(c=>'<span class="confchip">'+esc(PROF[c]||c)+'</span>').join('');
+  const gate=s.consentGated?'<span class="lock">🔒 consent</span>':'<span class="pub">public/screen</span>';
+  let btn;
+  if(done) btn='<button class="pullbtn done" disabled>✓ Pulled (sandbox)</button>';
+  else if(avail) btn='<button class="pullbtn" data-pull="'+s.id+'">Pull (sandbox) ▸</button>';
+  else btn='<button class="pullbtn blocked" disabled>🔒 Capture to unlock</button>';
+  const need = (!avail&&!done) ? '<div><span class="small" style="color:var(--warn)">Capture to unlock:</span><div class="confrow" style="margin-top:3px">'+miss.map(r=>'<span class="needchip">'+esc((KEYBY[r]||{label:r}).label)+'</span>').join('')+'</div></div>' : '';
+  return '<div class="src'+(done?' pulled':'')+(avail?'':' locked')+'" id="src-'+s.id+'">'
+    +'<div class="badges"><span class="sbx">SANDBOX (mock)</span>'+gate+'</div>'
+    +'<div class="nm">'+esc(s.name)+'</div>'
+    +'<div class="meta"><b>Feeds:</b> '+esc(s.feeds)+'<br/><b>Indexes →</b> CAM '+esc(s.cam)+'<br/><b>Monitors →</b> '+esc(s.monitors)+'<br/><b>Go-live:</b> '+esc(s.golive)+'</div>'
+    +(conf?'<div><span class="small dim">Confirms:</span><div class="confrow">'+conf+'</div></div>':'')
+    +need
+    +(done?'<div class="result">▸ '+esc(s.mock)+'</div>':'')
+    +btn+'</div>';
+}
+function renderCats(){
+  const byCat={}; DB.sources.forEach(s=>{(byCat[s.cat]=byCat[s.cat]||[]).push(s);});
+  document.getElementById('cats').innerHTML=DB.categories.map(c=>{
+    const rows=byCat[c.id]||[]; if(!rows.length) return '';
+    const av=rows.filter(available).length;
+    return '<div class="catsec"><div class="cathead"><h2>'+esc(c.label)+'</h2><span class="cb">'+av+'/'+rows.length+' available</span><span class="cb">'+esc(c.consent)+'</span></div>'
+      +'<div class="cards">'+rows.map(card).join('')+'</div></div>';
+  }).join('');
+  wirePulls();
+}
+function refreshAll(){ renderSummary(); renderKeyItems(); renderTrack(); renderCats(); wireKeys(); }
+function wireKeys(){
+  document.querySelectorAll('[data-key]').forEach(c=>c.onclick=()=>{ const id=c.dataset.key;
+    if(captured.has(id)) captured.delete(id); else captured.add(id);
+    // drop pulls that are no longer available
+    DB.sources.forEach(s=>{ if(pulled.has(s.id)&&!available(s)) pulled.delete(s.id); });
+    refreshAll(); });
+}
+function wirePulls(){
+  document.querySelectorAll('[data-pull]').forEach(b=>b.onclick=()=>{ const id=b.dataset.pull;
+    const s=DB.sources.find(x=>x.id===id); if(!s||!available(s)||pulled.has(id)) return; pulled.add(id);
+    const host=document.getElementById('src-'+id); if(host) host.outerHTML=card(s);
+    document.getElementById('pcount').textContent=pulled.size;
+    document.getElementById('prcount').textContent=confirmedProfiles().size;
+    renderTrack(); wirePulls(); });
+}
+refreshAll();
+</script>
+</body></html>
