@@ -1,0 +1,1381 @@
+/**
+ * Business X-Ray — Evidence-Graph Framework for Thin-File MSME Underwriting
+ * Cloudflare Worker (ES module). Single-file, self-contained. No build step.
+ *
+ * Faithful implementation of the framework in:
+ *   Athaide, M. "Business X-Ray: An Evidence-Graph Framework for Thin-File
+ *   Micro, Small and Medium Enterprise Underwriting from Premises Photographs."
+ *
+ * The engine below is the single source of truth. The browser client is a thin
+ * layer that POSTs evidence state to /api/* and renders what the engine returns,
+ * so every displayed number is traceable to an observation, claim, benchmark or
+ * derivation (Propositions P1, P6).
+ *
+ * IMPORTANT: outputs are illustrative first-pass scenarios, NOT a validated
+ * credit-scoring model and NOT a sanction recommendation (paper, Sections 3.8, 9).
+ *
+ * ------------------------------------------------------------------------------
+ * Structure
+ *   1. META / VERSION
+ *   2. BENCHMARK REGISTRY (versioned, governed — paper §5)
+ *   3. SECTOR TEMPLATES (drivers + shot list + evidence items — Table 3)
+ *   4. DEMONSTRATIONS (scrap-metal yard, supermarket — paper §6)
+ *   5. ENGINE (equations 2–9: interval math, P&L, WCR, acquisition, triangulation)
+ *   6. API HANDLERS
+ *   7. ASSETS (HTML shell, CSS, client JS) served from the Worker
+ *   8. ROUTER (export default { fetch })
+ * ------------------------------------------------------------------------------
+ */
+
+/* ============================ 1. META / VERSION ============================ */
+
+const APP = {
+  name: "Business X-Ray",
+  tagline: "An auditable first-pass assessment method for thin-file MSMEs",
+  engineVersion: "2.1.0",
+  registryVersion: "2026.08",
+  build: "cf-worker",
+};
+
+const EPS = 1e-9;
+
+/* ==================== 2. BENCHMARK REGISTRY (governed) ===================== */
+/* Every constant carries owner, source, effective period, plausible range and
+ * a version (paper §5: "every sector constant requires an owner, source,
+ * geography, effective period, plausible range and approval record"). Values
+ * are ILLUSTRATIVE and interval-valued so error attaches to a node class. */
+
+const REGISTRY = {
+  version: APP.registryVersion,
+  owner: "Sector Risk (illustrative)",
+  geography: "India — urban/peri-urban MSME",
+  effectivePeriod: "2026-Q3",
+  note: "Illustrative benchmarks for demonstration. Replace with lender-approved, drift-monitored values before any operational use.",
+  // gm = gross-margin ratio (gamma_s); opex = operating-expense ratio (omega_s)
+  // dio/dso/dpo in days; eta = energy intensity (kWh per Rs 1,000 of turnover)
+  sectors: {
+    retail:      { gm:[0.14,0.18,0.22], opex:[0.09,0.11,0.13], dio:30, dso:2,  dpo:20, eta:0.5 },
+    fnb:         { gm:[0.58,0.65,0.70], opex:[0.45,0.50,0.55], dio:4,  dso:1,  dpo:15, eta:1.2 },
+    services:    { gm:[0.48,0.55,0.62], opex:[0.34,0.40,0.46], dio:2,  dso:25, dpo:10, eta:0.4 },
+    warehouse:   { gm:[0.09,0.12,0.16], opex:[0.05,0.07,0.09], dio:35, dso:40, dpo:30, eta:0.3 },
+    scrap:       { gm:[0.07,0.09,0.12], opex:[0.04,0.05,0.065], dio:12, dso:3,  dpo:2,  eta:0.2 },
+    manufacturing:{gm:[0.22,0.28,0.34], opex:[0.14,0.18,0.22], dio:45, dso:45, dpo:35, eta:2.5 },
+  },
+};
+
+/* ==================== 3. SECTOR TEMPLATES (Table 3) ======================= */
+/* Each driver is interval-valued [lo, base, hi] and tagged with a node class
+ * (Observed or Claim). evidenceItems are candidate follow-up captures; each
+ * would narrow ONE driver toward a tighter interval (narrowPct = half-width as
+ * a fraction of base) and carries q (capture quality), v (audit value) and
+ * cost (operator burden) for the acquisition score, Equation (7). */
+
+const SECTORS = {
+  retail: {
+    id: "retail", name: "Retail / kirana / supermarket",
+    revenueFormula: "avg ticket × transactions/day × operating days",
+    drivers: [
+      { key:"ticket", label:"Average ticket", unit:"₹", cls:"Claim",    lo:180, base:250, hi:320 },
+      { key:"txns",   label:"Transactions / day", unit:"count", cls:"Observed", lo:300, base:450, hi:650 },
+      { key:"days",   label:"Operating days / yr", unit:"days", cls:"Claim", lo:340, base:350, hi:360 },
+    ],
+    shotList: ["Exterior & signage","Full trading floor","Stock / shelf zones","Price display / rate board","Billing counter / POS","Trade licence","Utility meter","Customer-flow area"],
+    evidenceItems: [
+      { id:"pos_daytotal", label:"POS day-total (Z-report)", driver:"txns", narrowPct:0.07, q:0.9, v:0.9, cost:2, cls:"Observed", note:"Constrains daily count directly." },
+      { id:"item_price",   label:"Item-price sample from shelf", driver:"ticket", narrowPct:0.06, q:0.85, v:0.7, cost:1, cls:"Observed", note:"Constrains average ticket." },
+      { id:"cust_count",   label:"Time-bounded customer count", driver:"txns", narrowPct:0.12, q:0.7, v:0.6, cost:3, cls:"Observed", note:"Independent check on footfall." },
+      { id:"licence_days", label:"Trade licence / shutter timings", driver:"days", narrowPct:0.30, q:0.8, v:0.5, cost:1, cls:"External", note:"Bounds operating days." },
+    ],
+  },
+  fnb: {
+    id:"fnb", name:"Food & beverage",
+    revenueFormula:"seats × turns/day × average cover × operating days",
+    drivers:[
+      { key:"seats", label:"Seats", unit:"count", cls:"Observed", lo:24, base:32, hi:40 },
+      { key:"turns", label:"Turns / day", unit:"x", cls:"Claim", lo:1.5, base:2.4, hi:3.4 },
+      { key:"cover", label:"Average cover", unit:"₹", cls:"Claim", lo:180, base:260, hi:360 },
+      { key:"days",  label:"Operating days / yr", unit:"days", cls:"Claim", lo:330, base:350, hi:360 },
+    ],
+    shotList:["Exterior & signage","Dining floor (seat count)","Kitchen / production","Menu / price board","Bill / KOT sample","FSSAI licence","Utility meter","Peak-hour occupancy"],
+    evidenceItems:[
+      { id:"menu_bill", label:"Menu + itemised bill sample", driver:"cover", narrowPct:0.08, q:0.88, v:0.8, cost:1, cls:"Observed", note:"Constrains average cover." },
+      { id:"occupancy", label:"Time-bounded occupancy count", driver:"turns", narrowPct:0.12, q:0.75, v:0.7, cost:3, cls:"Observed", note:"Constrains turns/day." },
+      { id:"seat_recount", label:"Full-floor seat recount", driver:"seats", narrowPct:0.05, q:0.9, v:0.5, cost:1, cls:"Observed", note:"Constrains seat count." },
+    ],
+  },
+  services: {
+    id:"services", name:"Services (repair / salon / clinic)",
+    revenueFormula:"clients/day × average fee × operating days",
+    drivers:[
+      { key:"clients", label:"Clients / day", unit:"count", cls:"Claim", lo:12, base:22, hi:38 },
+      { key:"fee",     label:"Average fee", unit:"₹", cls:"Claim", lo:250, base:420, hi:700 },
+      { key:"days",    label:"Operating days / yr", unit:"days", cls:"Claim", lo:300, base:330, hi:355 },
+    ],
+    shotList:["Exterior & signage","Service floor / chairs / bays","Primary equipment","Rate card","Appointment / job register","Professional licence","Utility meter","Waiting area"],
+    evidenceItems:[
+      { id:"rate_card", label:"Rate card capture", driver:"fee", narrowPct:0.07, q:0.9, v:0.7, cost:1, cls:"Observed", note:"Constrains average fee." },
+      { id:"job_register", label:"Appointment / job register", driver:"clients", narrowPct:0.10, q:0.85, v:0.85, cost:2, cls:"Observed", note:"Constrains client count." },
+      { id:"receipts", label:"Receipt / invoice sample", driver:"fee", narrowPct:0.06, q:0.8, v:0.75, cost:2, cls:"Observed", note:"Cross-checks fees & mix." },
+    ],
+  },
+  warehouse: {
+    id:"warehouse", name:"Warehouse / distribution",
+    revenueFormula:"sales per sq ft/day × usable area × operating days",
+    drivers:[
+      { key:"psf",  label:"Sales / sq ft / day", unit:"₹", cls:"Claim", lo:6, base:11, hi:18 },
+      { key:"area", label:"Usable area", unit:"sq ft", cls:"Observed", lo:3500, base:4800, hi:6200 },
+      { key:"days", label:"Operating days / yr", unit:"days", cls:"Claim", lo:300, base:330, hi:355 },
+    ],
+    shotList:["Exterior & signage","Full storage floor","Stock / SKU zones","Handling equipment","Dispatch bay / register","Trade licence","Utility meter","Loading activity"],
+    evidenceItems:[
+      { id:"dispatch_register", label:"Dispatch register / invoices", driver:"psf", narrowPct:0.09, q:0.88, v:0.9, cost:2, cls:"Observed", note:"Constrains throughput." },
+      { id:"area_measure", label:"Usable-area measurement", driver:"area", narrowPct:0.05, q:0.9, v:0.5, cost:2, cls:"Observed", note:"Constrains usable area." },
+      { id:"stock_turn", label:"Stock-turn record", driver:"psf", narrowPct:0.08, q:0.8, v:0.7, cost:3, cls:"Observed", note:"Cross-checks throughput." },
+    ],
+  },
+  scrap: {
+    id:"scrap", name:"Scrap trading / metal yard",
+    revenueFormula:"tonnage/day × blended price/kg × operating days",
+    drivers:[
+      { key:"tonnage", label:"Tonnage / day", unit:"t", cls:"Observed", lo:6.5, base:13.4, hi:20.0 },
+      { key:"price",   label:"Blended price", unit:"₹/kg", cls:"Benchmark", lo:30.8, base:40.0, hi:43.4 },
+      { key:"days",    label:"Operating days / yr", unit:"days", cls:"Claim", lo:290, base:300, hi:310 },
+    ],
+    unitScale: { tonnage: 1000 }, // tonnes/day × 1000 → kg/day, priced ₹/kg
+    shotList:["Exterior & signage","Full yard / working shed","Material-mix piles","Weighbridge","Baling press / equipment","Rate board","GST / trade licence","Utility meter"],
+    evidenceItems:[
+      { id:"weighbridge", label:"Weighbridge slips", driver:"tonnage", narrowPct:0.10, q:0.9, v:0.95, cost:2, cls:"Observed", note:"Removes the dominant tonnage spread (P3)." },
+      { id:"rate_board",  label:"Rate-board / material-mix photo", driver:"price", narrowPct:0.06, q:0.85, v:0.7, cost:1, cls:"Observed", note:"Constrains blended price." },
+      { id:"days_claim",  label:"Operating-days confirmation", driver:"days", narrowPct:0.02, q:0.7, v:0.4, cost:1, cls:"Claim", note:"Minor — days already tight." },
+    ],
+  },
+  manufacturing: {
+    id:"manufacturing", name:"Light manufacturing",
+    revenueFormula:"units/hour × productive hours/day × utilisation × price × operating days",
+    drivers:[
+      { key:"uph",   label:"Units / hour", unit:"count", cls:"Observed", lo:40, base:60, hi:85 },
+      { key:"hours", label:"Productive hours/day", unit:"h", cls:"Claim", lo:6, base:8, hi:10 },
+      { key:"util",  label:"Utilisation", unit:"×", cls:"Claim", lo:0.55, base:0.72, hi:0.88 },
+      { key:"price", label:"Price / unit", unit:"₹", cls:"Claim", lo:35, base:55, hi:80 },
+      { key:"days",  label:"Operating days/yr", unit:"days", cls:"Claim", lo:280, base:300, hi:320 },
+    ],
+    shotList:["Exterior & signage","Production floor","Primary machines","Raw-material / WIP zones","Finished-goods / dispatch","Rate / invoice sample","Factory licence","Utility meter"],
+    evidenceItems:[
+      { id:"machine_counter", label:"Machine counter reading", driver:"uph", narrowPct:0.07, q:0.9, v:0.9, cost:2, cls:"Observed", note:"Constrains output rate." },
+      { id:"shift_record", label:"Shift record", driver:"hours", narrowPct:0.08, q:0.82, v:0.7, cost:2, cls:"Observed", note:"Constrains productive hours." },
+      { id:"invoice_sample", label:"Invoice sample", driver:"price", narrowPct:0.06, q:0.85, v:0.75, cost:2, cls:"Observed", note:"Constrains price." },
+    ],
+  },
+};
+
+/* Six evidence-graph node classes (Table 2) — used for colour-coding & legend. */
+const NODE_CLASSES = [
+  { id:"Observed",  label:"Observed fact",   desc:"Visible in a bounded frame (counts, legible text, meter reading).", threat:"Occlusion, framing, staging, counting/OCR error." },
+  { id:"Claim",     label:"Borrower claim",  desc:"Reported by borrower or operator (days, ticket, ownership).", threat:"Strategic or mistaken reporting." },
+  { id:"Benchmark", label:"Benchmark",       desc:"Externally sourced / lender-approved assumption (margin, days, energy intensity).", threat:"Regional, temporal or business-model drift." },
+  { id:"Derived",   label:"Derived estimate",desc:"Transformation of the preceding layers (turnover, EBITDA, WCR, band).", threat:"Model misspecification, compounding error." },
+  { id:"External",  label:"External signal", desc:"GSTIN validity, utility use, digital receipts.", threat:"Time mismatch, partial channel coverage, incorrect mapping." },
+  { id:"Gap",       label:"Data gap / action",desc:"Missing evidence and the proposed capture to close it.", threat:"Low capture feasibility or misleading closure." },
+];
+
+/* ==================== 4. DEMONSTRATIONS (paper §6) ======================== */
+
+const DEMOS = {
+  scrap: {
+    id:"scrap", title:"Scrap-metal yard", sector:"scrap",
+    blurb:"Reproduces §6.1: an active dealer interpreted from premises photos. Traceable reconciliation, not measured accuracy.",
+    drivers:{ tonnage:{lo:6.5,base:13.4,hi:20.0}, price:{lo:30.8,base:40.0,hi:43.4}, days:{lo:290,base:300,hi:310} },
+    inventory:{ lines:[
+      { label:"Mixed ferrous scrap (yard piles)", unit:"tonne", qtyLo:90, qtyBase:120, qtyHi:150, uvLo:28000, uvBase:30000, uvHi:32000 },
+      { label:"Copper cable & motor windings", unit:"tonne", qtyLo:1.4, qtyBase:2.0, qtyHi:2.6, uvLo:520000, uvBase:560000, uvHi:600000 },
+    ]},
+    external:{ energy:{ kwh:2000, months:1 }, gstin:{ status:"syntax-valid" }, banking:{ credits:134000, months:1, channels:1 } },
+    flags:{},
+    story:"Photo-derived base ≈ ₹16.1 Cr with a wide pre-evidence interval ≈ ₹5.8–26.9 Cr. A ~2,000 kWh/month reading implies ≈ ₹12 Cr under an illustrative energy-intensity benchmark — directionally concordant. GSTIN syntax validates; an estimated ~99% cash share is surfaced as a lender risk. Dominant threats: tonnage, material mix, operating days, meter mapping, cash share.",
+  },
+  supermarket: {
+    id:"supermarket", title:"Supermarket — iterative closure", sector:"retail",
+    blurb:"Reproduces §6.2: a second capture supplies price board, POS day-total and licences; the interval narrows monotonically.",
+    // initial (wide) vs closed (after 3 gaps closed)
+    initial:{ ticket:{lo:180,base:250,hi:340}, txns:{lo:300,base:450,hi:680}, days:{lo:335,base:350,hi:360} },
+    closed:{  ticket:{lo:235,base:250,hi:265}, txns:{lo:423,base:450,hi:477}, days:{lo:343,base:350,hi:357} },
+    external:{ gstin:{ status:"syntax-valid" } },
+    story:"After capturing the recommended price board, POS day-total and licences, the profile moves medium→high activity, three data gaps close and the revenue scenario narrows to ≈ ±14% around the base — monotone interval reduction within the rule engine (not a coverage claim).",
+  },
+};
+
+/* ============ 4b. PHOTO CAPTURE ↔ DATA BACKBONE (companion paper) ========= */
+/* Ties the photo X-Ray to the "Data Backbone" (DPI) paper: 10 verification
+ * domains, GSTIN→PAN→Aadhaar / UPI-VPA→bank linkage keys, and the
+ * Information-Resolution Index (IRI). Each photo facet resolves one or more
+ * domains and points to the data source that validates it. */
+
+const DATA_DOMAINS = [
+  { id:"identity",    name:"Identity & verification", sources:"Aadhaar eKYC, PAN, GSTIN" },
+  { id:"income",      name:"Income & financial",      sources:"GSTN filings, Account Aggregator (bank inflows), UPI" },
+  { id:"stability",   name:"Business stability",      sources:"Udyam/Enterprise registry, MCA21, vintage" },
+  { id:"behaviour",   name:"Behavioural / catchment", sources:"Telecom tower density, footfall, ONDC, maps" },
+  { id:"collateral",  name:"Collateral & assets",     sources:"Secured-transactions registry, asset nameplates, land records" },
+  { id:"compliance",  name:"Compliance & licences",   sources:"FSSAI / trade / factory licences, utility, tax filing status" },
+  { id:"monitoring",  name:"Post-disbursement",       sources:"Real-time payments, consented account refresh" },
+  { id:"digital",     name:"Social & digital",        sources:"Business messaging, reviews, marketplace presence" },
+  { id:"uli",         name:"ULI consolidated gateway", sources:"136+ services (land, geospatial, tax, valuation)" },
+  { id:"mesh",        name:"Public-service DPI mesh",  sources:"GeM, AgriStack, ABDM, CBDC, e-way, and 13 more rails" },
+];
+
+/* Facet library — one entry per type of photo/evidence a field officer captures.
+ * node = evidence-graph node class it feeds; domains = verification domains it
+ * resolves (IRI); key = record-linkage key it surfaces; validates = the data
+ * cross-check it unlocks; output = the analysis it drives; privacy = guardrail. */
+const FACETS = {
+  exterior:    { label:"Exterior & signage", cat:"Outside", node:"Observed", domains:["stability","digital"], key:"Business name → GSTIN lookup", data:"Maps / ONDC presence; name board", validates:"Business exists at claimed location; name/identity match", output:"Anchors the profile & location context (c)", privacy:"Crop faces & number plates" },
+  neighbourhood:{ label:"Neighbourhood / street context", cat:"Neighbourhood", node:"Observed", domains:["behaviour"], key:"Geo / pincode", data:"Telecom tower density (IV), satellite/geospatial via ULI, footfall", validates:"Catchment is lively vs desolate → demand plausibility", output:"Sanity-bounds transactions/footfall drivers", privacy:"No identifiable persons" },
+  interior:    { label:"Full interior / trading floor", cat:"Inside", node:"Observed", domains:[], key:"", data:"—", validates:"Scale & activity state of the premises", output:"Baseline coverage for scenario", privacy:"Redact customers" },
+  qr_code:     { label:"UPI / merchant QR code", cat:"Codes & documents", node:"External", domains:["income","monitoring"], key:"UPI VPA → bank a/c (99.1% deterministic)", data:"UPI + Account Aggregator bank inflows", validates:"Banking-to-total ratio; cash share = residual; turnover vs bank inflows (r≈0.82)", output:"Drives banking-vs-cash panel", privacy:"VPA is a business identifier; AA pull needs consent" },
+  utility_meter:{ label:"Utility meter + consumer number", cat:"Codes & documents", node:"Observed", domains:["compliance","uli"], key:"Electricity consumer number", data:"DISCOM consumption (via ULI/utility)", validates:"Energy-based revenue proxy (R̂ᵉˡᵉᶜ = E/η × κ)", output:"Drives external energy triangulation", privacy:"Consumer number ok; no home address" },
+  gst_board:   { label:"GST board / GST certificate", cat:"Codes & documents", node:"External", domains:["identity","income","compliance"], key:"GSTIN (primary key)", data:"GSTN filing history", validates:"Photo-derived turnover vs GST-filed turnover (concordance C); unlocks the whole linkage chain", output:"GST turnover cross-check", privacy:"GSTIN is a public business identifier" },
+  udyam:       { label:"Udyam registration certificate", cat:"Codes & documents", node:"External", domains:["identity","stability"], key:"Udyam / PAN", data:"Udyam & enterprise registry", validates:"Vintage, MSME category, declared activity", output:"Confirms sector & scale band", privacy:"Do not store proprietor Aadhaar" },
+  pukka_invoice:{ label:"Pukka / tax invoices (sample)", cat:"Codes & documents", node:"Observed", domains:["income"], key:"e-invoice IRN / e-way", data:"GSTN e-invoice / e-way bills", validates:"Average ticket & price; B2B revenue; ties to tax filings", output:"Constrains price / ticket driver", privacy:"Redact counterparty PII" },
+  kacha_bill:  { label:"Kacha bills / cash ledger", cat:"Codes & documents", node:"Claim", domains:["income"], key:"—", data:"None (off-banking) — validated as the residual", validates:"Cash component not in banking; feeds cash-share estimate (the unexplained ~18% vs bank inflows)", output:"Sizes the cash economy the records miss", privacy:"No customer PII; note it is unverified" },
+  price_board: { label:"Price / rate board", cat:"Inside", node:"Observed", domains:["income"], key:"", data:"Item-price sample", validates:"Unit / blended price", output:"Constrains price driver", privacy:"—" },
+  machinery:   { label:"Machinery + nameplate", cat:"Assets & stock", node:"Observed", domains:["collateral"], key:"Asset serial", data:"Nameplate capacity; secured-transactions registry", validates:"Rated capacity → output driver; asset/collateral value", output:"Constrains capacity; collateral note", privacy:"—" },
+  display:     { label:"Display / shelves / stock zones", cat:"Assets & stock", node:"Observed", domains:[], key:"", data:"Visible stock", validates:"Stock density → inventory value → DIO", output:"Feeds inventory worksheet & trade cycle", privacy:"—" },
+  storage:     { label:"Storage / godown", cat:"Assets & stock", node:"Observed", domains:[], key:"", data:"Back-stock", validates:"Hidden inventory; storage capacity", output:"Adjusts inventory & abstention (hidden inventory)", privacy:"—" },
+  weighbridge: { label:"Weighbridge / measurement point", cat:"Assets & stock", node:"Observed", domains:["income"], key:"", data:"Weighbridge slips", validates:"Tonnage / throughput measurement", output:"Removes dominant tonnage spread (scrap/warehouse)", privacy:"—" },
+  licence:     { label:"Trade / FSSAI / factory licence", cat:"Codes & documents", node:"External", domains:["compliance"], key:"Licence no.", data:"Sector licence registries", validates:"Legitimacy & sector compliance; operating-days bound", output:"Compliance flag; bounds operating days", privacy:"—" },
+  dispatch:    { label:"Dispatch bay / register", cat:"Inside", node:"Observed", domains:["income"], key:"e-way", data:"Dispatch register, e-way bills", validates:"Throughput / sales cadence", output:"Constrains throughput (warehouse/mfg)", privacy:"Redact counterparties" },
+};
+
+/* Per-profile prioritised capture packs (facet ids in collection order). */
+const CAPTURE = {
+  retail:       ["exterior","neighbourhood","interior","price_board","display","qr_code","gst_board","utility_meter","pukka_invoice","kacha_bill","licence","udyam"],
+  fnb:          ["exterior","neighbourhood","interior","price_board","qr_code","gst_board","utility_meter","licence","kacha_bill","display","udyam"],
+  services:     ["exterior","neighbourhood","interior","price_board","machinery","qr_code","gst_board","pukka_invoice","licence","kacha_bill","udyam"],
+  warehouse:    ["exterior","interior","display","storage","dispatch","machinery","gst_board","pukka_invoice","qr_code","utility_meter","udyam"],
+  scrap:        ["exterior","neighbourhood","interior","weighbridge","display","storage","price_board","machinery","gst_board","utility_meter","qr_code","kacha_bill"],
+  manufacturing:["exterior","interior","machinery","display","storage","dispatch","utility_meter","gst_board","pukka_invoice","qr_code","licence","udyam"],
+};
+
+/* Information-Resolution Index (Data Backbone paper, Eq 4): weighted share of
+ * verification domains resolved. Photos resolve the cheap first domains. */
+function iriFromDomains(resolvedSet) {
+  const total = DATA_DOMAINS.length;
+  const resolved = DATA_DOMAINS.filter(d => resolvedSet.has(d.id)).length;
+  return { resolved, total, iri: total ? resolved / total : 0 };
+}
+
+/* ============================== 5. ENGINE ================================= */
+/* All outputs are interval-valued [lo, base, hi]. Positivity of drivers makes
+ * revenue interval arithmetic exact under multiplication (Equation 2). */
+
+function iv(lo, base, hi) { return { lo, base, hi }; }
+function width(I) { return I.hi - I.lo; }                 // Equation (6)
+function relWidth(I) { return I.base > 0 ? (I.hi - I.lo) / I.base : 0; }
+
+/** Revenue interval, Equation (2): R̂ = Π d_i × D, with unit scaling. */
+function revenueInterval(sector, driverState) {
+  let lo = 1, base = 1, hi = 1;
+  for (const d of sector.drivers) {
+    const s = driverState[d.key] || d;
+    const scale = (sector.unitScale && sector.unitScale[d.key]) || 1;
+    lo   *= s.lo   * scale;
+    base *= s.base * scale;
+    hi   *= s.hi   * scale;
+  }
+  return iv(lo, base, hi);
+}
+
+/** Measured inventory value from a stock worksheet: Σ qty × unit value.
+ * An Observed node (visible stock zones) — lets DIO and WCR be evidence-backed
+ * instead of benchmark-only. */
+function inventoryValue(inv) {
+  if (!inv || !Array.isArray(inv.lines) || !inv.lines.length) return null;
+  let lo = 0, base = 0, hi = 0;
+  for (const l of inv.lines) {
+    lo   += (+l.qtyLo   || 0) * (+l.uvLo   || 0);
+    base += (+l.qtyBase || 0) * (+l.uvBase || 0);
+    hi   += (+l.qtyHi   || 0) * (+l.uvHi   || 0);
+  }
+  return base > 0 ? iv(lo, base, hi) : null;   // fall back to benchmark DIO until real values entered
+}
+
+/** Simplified P&L (Equation 3) + WCR (Equations 4–5).
+ * If a measured inventory interval is supplied, WCR is computed from the
+ * accounting identity WCR = Inventory + Receivables − Payables (Equation 4),
+ * with DIO and the trade cycle derived from the observed stock rather than the
+ * benchmark. */
+function financials(sectorId, R, invValue) {
+  const b = REGISTRY.sectors[sectorId];
+  const gm = b.gm, ox = b.opex;
+  const ebitda = iv(
+    R.lo   * (gm[0] - ox[2]),
+    R.base * (gm[1] - ox[1]),
+    R.hi   * (gm[2] - ox[0]),
+  );
+  const grossProfit = iv(R.lo*gm[0], R.base*gm[1], R.hi*gm[2]);
+  const opexAmt     = iv(R.lo*ox[0], R.base*ox[1], R.hi*ox[2]);
+  const cogsAt = (r, g) => r * (1 - g);
+  const cogs = iv(cogsAt(R.lo,gm[2]), cogsAt(R.base,gm[1]), cogsAt(R.hi,gm[0]));
+
+  const receivables = iv(b.dso*R.lo/365, b.dso*R.base/365, b.dso*R.hi/365);
+  const payables    = iv(b.dpo*cogs.lo/365, b.dpo*cogs.base/365, b.dpo*cogs.hi/365);
+
+  let inventory, dio, cycleDays, wcr, inventorySource;
+  if (invValue) {
+    // Equation (4): measured inventory node
+    inventory = invValue;
+    inventorySource = "observed";
+    dio = (inventory.base * 365) / (cogs.base || EPS);           // implied DIO
+    cycleDays = dio + b.dso - b.dpo;
+    // interval add/sub: lo = invLo + recLo − payHi ; hi = invHi + recHi − payLo
+    wcr = iv(
+      inventory.lo + receivables.lo - payables.hi,
+      inventory.base + receivables.base - payables.base,
+      inventory.hi + receivables.hi - payables.lo,
+    );
+  } else {
+    // Equation (5): benchmark DIO
+    inventorySource = "benchmark";
+    dio = b.dio;
+    inventory = iv(b.dio*cogs.lo/365, b.dio*cogs.base/365, b.dio*cogs.hi/365);
+    cycleDays = b.dio + b.dso - b.dpo;
+    const wcrAt = (r, g) => (b.dio*cogsAt(r,g) + b.dso*r - b.dpo*cogsAt(r,g)) / 365;
+    wcr = iv(wcrAt(R.lo, gm[2]), wcrAt(R.base, gm[1]), wcrAt(R.hi, gm[0]));
+  }
+  return { revenue:R, grossProfit, cogs, opex:opexAmt, ebitda,
+           inventory, receivables, payables, wcr,
+           dio: Math.round(dio*10)/10, cycleDays: Math.round(cycleDays*10)/10, inventorySource,
+           margins:{ gm, opex:ox, dio:b.dio, dso:b.dso, dpo:b.dpo } };
+}
+
+/** Banking-vs-cash reconciliation. Banked credits over a period imply an annual
+ * banked turnover; comparing to photo-derived turnover gives the banking share
+ * and, by residual, the cash share (paper §6.1 surfaces this as a lender risk).
+ * External signals corroborate or conflict — they never overwrite the estimate. */
+function bankingReconcile(R, banking) {
+  if (!banking || !(+banking.credits > 0)) return null;
+  const months = +banking.months || 1;
+  const coverage = Math.min(1, Math.max(0.01, +banking.channels || 1));
+  const bankedAnnual = (+banking.credits) * (12 / months) / coverage;
+  const bankingSharePct = Math.min(100, Math.max(0, (bankedAnnual / (R.base || EPS)) * 100));
+  const cashSharePct = Math.round((100 - bankingSharePct) * 10) / 10;
+  // banked credits are a lower bound on true turnover → concordance vs photo interval
+  const bankedInterval = iv(bankedAnnual, bankedAnnual, bankedAnnual);
+  const conc = concordance(R, bankedInterval);
+  const verdict = cashSharePct > 80 ? "conflict" : cashSharePct > 50 ? "partial" : "concordant";
+  return { bankedAnnual, bankingSharePct: Math.round(bankingSharePct*10)/10, cashSharePct,
+           coverage, concordance: conc, verdict };
+}
+
+/** Targeted evidence acquisition score, Equation (7). Returns ranked list. */
+function rankEvidence(sector, driverState) {
+  const R0 = revenueInterval(sector, driverState);
+  const W0 = width(R0);
+  const out = [];
+  for (const e of sector.evidenceItems) {
+    // simulate narrowing target driver to ±narrowPct around its base
+    const sim = JSON.parse(JSON.stringify(driverState));
+    const d = sim[e.driver];
+    if (!d) continue;
+    const half = d.base * e.narrowPct;
+    const nlo = Math.max(d.lo, d.base - half);
+    const nhi = Math.min(d.hi, d.base + half);
+    // only counts if it actually tightens
+    sim[e.driver] = { lo:nlo, base:d.base, hi:nhi };
+    const W1 = width(revenueInterval(sector, sim));
+    const dW = Math.max(0, W0 - W1);                       // E[W(I) - W(I|e_j)]
+    const score = (dW * e.q * e.v) / (e.cost + EPS);       // Equation (7)
+    out.push({
+      id:e.id, label:e.label, driver:e.driver, cls:e.cls, note:e.note,
+      q:e.q, v:e.v, cost:e.cost,
+      expectedWidthReduction: dW,
+      expectedWidthReductionPct: W0 > 0 ? dW / W0 : 0,
+      acquisitionScore: score,
+    });
+  }
+  out.sort((a,b) => b.acquisitionScore - a.acquisitionScore);
+  return { baselineWidth:W0, items:out };
+}
+
+/** Energy-based revenue proxy, Equation (8): R̂_elec = (E_period/η) × κ. */
+function energyProxy(sectorId, kwh, months) {
+  const eta = REGISTRY.sectors[sectorId].eta;       // kWh per ₹1,000 turnover
+  if (!kwh || !eta) return null;
+  const periodTurnoverThousands = kwh / eta;        // ₹'000 for the period
+  const annualiser = 12 / (months || 1);            // κ
+  const rupees = periodTurnoverThousands * 1000 * annualiser;
+  // report as a band (energy mapping is uncertain): ±40% illustrative
+  return iv(rupees * 0.6, rupees, rupees * 1.4);
+}
+
+/** Interval concordance, Equation (9): |A∩B| / |A∪B| (a descriptive overlap). */
+function concordance(A, B) {
+  if (!A || !B) return null;
+  const inter = Math.max(0, Math.min(A.hi, B.hi) - Math.max(A.lo, B.lo));
+  const union = Math.max(A.hi, B.hi) - Math.min(A.lo, B.lo);
+  return union > 0 ? inter / union : 0;
+}
+
+/** Abstention policy (paper §3.3). Returns triggered reasons + recommendation. */
+function abstention(sector, driverState, flags, captureCompletion) {
+  const reasons = [];
+  const hard = {
+    mixed:"Mixed business without separable zones",
+    hidden:"Hidden inventory dominates value",
+    seasonal:"Seasonal shutdown",
+    specialized:"Specialised equipment without a defensible benchmark",
+    stale:"Inconsistent or stale capture",
+    reuse:"Possible photo reuse",
+  };
+  for (const k in hard) if (flags && flags[k]) reasons.push(hard[k]);
+  // evidence-too-poor: a material driver is very wide AND capture is thin
+  const R = revenueInterval(sector, driverState);
+  if (relWidth(R) > 1.2 && (captureCompletion ?? 1) < 0.5) {
+    reasons.push("Evidence too poor to constrain a material driver");
+  }
+  return { abstain: reasons.length > 0, reasons };
+}
+
+/** Indicative review band — a lender POLICY overlay, not a sanction (paper §3.8). */
+function reviewBand(fin, policy) {
+  const p = Object.assign({ dscr:1.5, haircut:0.25, tenorMonths:36, existingObligations:0 }, policy || {});
+  // conservative annual EBITDA, haircut, DSCR → indicative sustainable exposure
+  const consEbitdaAnnual = Math.max(0, fin.ebitda.lo) * (1 - p.haircut);
+  const baseEbitdaAnnual = Math.max(0, fin.ebitda.base) * (1 - p.haircut);
+  const annualDebtService = (v) => v / p.dscr;
+  const toExposure = (annualService) =>
+    Math.max(0, annualService * (p.tenorMonths / 12) - p.existingObligations);
+  return {
+    policy:p,
+    conservative: toExposure(annualDebtService(consEbitdaAnnual)),
+    base: toExposure(annualDebtService(baseEbitdaAnnual)),
+    disclaimer: "Indicative policy overlay derived from illustrative EBITDA. NOT a sanction recommendation; final decisions require independently verified repayment capacity and human approval.",
+  };
+}
+
+/** Evidence-quality / applicability rollup for the lender-facing header. */
+function qualityRollup(sector, provided) {
+  const total = sector.shotList.length;
+  const have = (provided && provided.length) || 0;
+  const completion = Math.min(1, have / total);
+  return { captureCompletion: completion, shotsRequired: total, shotsProvided: have };
+}
+
+/** Full estimate package for a sector + driver state (+ optional external/policy). */
+function computeEstimate(sectorId, driverState, opts = {}) {
+  const sector = SECTORS[sectorId];
+  if (!sector) throw new Error("unknown sector: " + sectorId);
+  // normalise driver state to full set
+  const ds = {};
+  for (const d of sector.drivers) {
+    const s = (driverState && driverState[d.key]) || d;
+    ds[d.key] = { lo:+s.lo, base:+s.base, hi:+s.hi };
+  }
+  const R = revenueInterval(sector, ds);
+  const invValue = inventoryValue(opts.inventory);
+  const fin = financials(sectorId, R, invValue);
+  const evidence = rankEvidence(sector, ds);
+  const quality = qualityRollup(sector, opts.providedShots);
+  const abst = abstention(sector, ds, opts.flags, quality.captureCompletion);
+
+  // external triangulation
+  let triangulation = null;
+  if (opts.external) {
+    const ex = opts.external;
+    const elec = ex.energy ? energyProxy(sectorId, ex.energy.kwh, ex.energy.months) : null;
+    const banking = bankingReconcile(R, ex.banking);
+    const cashShare = banking ? banking.cashSharePct : (ex.cashSharePct ?? null);
+    triangulation = {
+      energyProxy: elec,
+      concordance: elec ? concordance(R, elec) : null,
+      gstin: ex.gstin || null,
+      banking,
+      cashSharePct: cashShare,
+      signals: [],
+    };
+    if (elec) {
+      const c = triangulation.concordance;
+      triangulation.signals.push({
+        type:"utility",
+        verdict: c >= 0.5 ? "concordant" : c >= 0.25 ? "partial" : "conflict",
+        detail:`Energy proxy ≈ ${fmtCr(elec.base)} vs photo-derived ${fmtCr(R.base)} (base). Overlap C=${c.toFixed(2)}. Reported as directional corroboration only — no learned weights.`,
+      });
+    }
+    if (ex.gstin) triangulation.signals.push({ type:"gstin", verdict: ex.gstin.status==="syntax-valid"?"concordant":"conflict", detail:"GSTIN syntax validated — confirms registration form, not active trading or turnover." });
+    if (banking) {
+      triangulation.signals.push({
+        type:"payments",
+        verdict: banking.verdict,
+        detail:`Banked credits imply ≈ ${fmtCr(banking.bankedAnnual)}/yr through banking channels vs photo-derived ${fmtCr(R.base)} — banking share ≈ ${banking.bankingSharePct}%, so cash share ≈ ${banking.cashSharePct}%. Overlap C=${banking.concordance.toFixed(2)}. Surfaced as a lender risk & verification priority; digital records cover only the banked channel.`,
+      });
+    } else if (ex.cashSharePct != null) {
+      triangulation.signals.push({ type:"payments", verdict: ex.cashSharePct>80?"conflict":"partial", detail:`Estimated cash share ≈ ${ex.cashSharePct}% — digital receipts cover only the observed channel; surfaced as a lender risk & verification priority.` });
+    }
+  }
+
+  const band = opts.policy ? reviewBand(fin, opts.policy) : reviewBand(fin, {});
+  return {
+    sector:{ id:sector.id, name:sector.name, formula:sector.revenueFormula },
+    drivers: ds,
+    turnover: { conservative:R.lo, base:R.base, optimistic:R.hi, width:width(R), relWidth:relWidth(R) },
+    pnl: fin,
+    evidence,
+    quality,
+    abstention: abst,
+    triangulation,
+    reviewBand: band,
+    registry: { version:REGISTRY.version, effectivePeriod:REGISTRY.effectivePeriod },
+    engineVersion: APP.engineVersion,
+  };
+}
+
+/* ------------------------------- formatting ------------------------------ */
+function fmtCr(x) {
+  if (x == null || isNaN(x)) return "—";
+  if (Math.abs(x) >= 1e7) return "₹" + (x/1e7).toFixed(2) + " Cr";
+  if (Math.abs(x) >= 1e5) return "₹" + (x/1e5).toFixed(2) + " L";
+  return "₹" + Math.round(x).toLocaleString("en-IN");
+}
+
+/* ============================= 6. API HANDLERS ============================ */
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: { "content-type":"application/json; charset=utf-8", "cache-control":"no-store" },
+  });
+}
+
+function apiMeta() {
+  // Everything the client needs to render the workspace.
+  return json({
+    app: APP,
+    nodeClasses: NODE_CLASSES,
+    registry: REGISTRY,
+    sectors: Object.values(SECTORS).map(s => ({
+      id:s.id, name:s.name, revenueFormula:s.revenueFormula,
+      drivers:s.drivers, shotList:s.shotList, evidenceItems:s.evidenceItems,
+    })),
+    demos: Object.values(DEMOS).map(d => ({ id:d.id, title:d.title, sector:d.sector, blurb:d.blurb })),
+    propositions: PROPOSITIONS,
+    workflow: WORKFLOW,
+    dataDomains: DATA_DOMAINS,
+    facets: FACETS,
+    capture: CAPTURE,
+  });
+}
+
+async function apiEstimate(request) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error:"invalid JSON" }, 400); }
+  const { sector, drivers, external, policy, providedShots, flags, inventory } = body || {};
+  try {
+    const result = computeEstimate(sector, drivers, { external, policy, providedShots, flags, inventory });
+    return json(result);
+  } catch (e) {
+    return json({ error:String(e && e.message || e) }, 400);
+  }
+}
+
+function apiDemo(id) {
+  const d = DEMOS[id];
+  if (!d) return json({ error:"unknown demo" }, 404);
+  if (id === "scrap") {
+    const result = computeEstimate("scrap", d.drivers, { external:d.external, inventory:d.inventory, flags:d.flags, providedShots:SECTORS.scrap.shotList });
+    return json({ demo:{ id:d.id, title:d.title, sector:d.sector, blurb:d.blurb, story:d.story }, state:{ drivers:d.drivers, external:d.external, inventory:d.inventory }, result });
+  }
+  if (id === "supermarket") {
+    const initial = computeEstimate("retail", d.initial, { external:d.external, providedShots:SECTORS.retail.shotList.slice(0,4) });
+    const closed  = computeEstimate("retail", d.closed,  { external:d.external, providedShots:SECTORS.retail.shotList });
+    return json({ demo:{ id:d.id, title:d.title, sector:d.sector, blurb:d.blurb, story:d.story },
+                  state:{ initial:d.initial, closed:d.closed },
+                  result:{ initial, closed,
+                           narrowing:{ from:initial.turnover.relWidth, to:closed.turnover.relWidth } } });
+  }
+  return json({ error:"unhandled demo" }, 404);
+}
+
+const PROPOSITIONS = [
+  { id:"P1", title:"Traceability", text:"Separating observations, claims, benchmarks and derived estimates increases inter-reviewer agreement and reduces unexplained overrides vs a narrative note." },
+  { id:"P2", title:"Targeted acquisition", text:"The ranked next-evidence policy reduces revenue-interval width per unit of field time more than a fixed, non-adaptive recapture checklist." },
+  { id:"P3", title:"Incremental information", text:"Price and volume evidence reduces turnover error more than additional wide-angle photographs once baseline coverage is achieved." },
+  { id:"P4", title:"Reconciliation", text:"Time-aligned external signals reduce held-out error or improve conflict detection; misaligned signals are not forced into agreement." },
+  { id:"P5", title:"Abstention", text:"A pre-specified abstention policy lowers error among accepted cases as abstention increases — an interpretable risk–coverage frontier." },
+  { id:"P6", title:"Human supervision", text:"Structured human review improves error and conflict resolution vs the automated rule engine; override patterns are audited for bias." },
+];
+
+const WORKFLOW = [
+  { n:1, title:"Consented capture", detail:"Photographs P + location/business context c." },
+  { n:2, title:"Visual extraction g(·)", detail:"Visible content only: counts, legible text, zones, 1–5 quality." },
+  { n:3, title:"Evidence graph x", detail:"Observations · claims · benchmarks · derived (+ external-signal & data-gap layers)." },
+  { n:4, title:"Sector model f_s(·;θ_s)", detail:"Turnover scenario · simplified P&L · working capital." },
+  { n:5, title:"External triangulation", detail:"Concordance / conflict with tax, utility, payment signals." },
+  { n:6, title:"Lender package + review band", detail:"Human approval · abstention · contestability." },
+];
+
+/* ============================== 7. ASSETS ================================ */
+/* HTML shell + CSS + client JS. One shell serves all hash-routed views. */
+
+const CSS = `
+:root{
+  --bg:#0d1117; --panel:#151b23; --panel2:#1b232d; --line:#26303c;
+  --ink:#e6edf3; --mut:#93a1b0; --dim:#6b7a8a;
+  --brand:#4f7cff; --brand2:#7aa2ff;
+  --obs:#3b82f6; --claim:#f59e0b; --bench:#a855f7; --deriv:#10b981; --ext:#06b6d4; --gap:#f43f5e;
+  --ok:#10b981; --warn:#f59e0b; --bad:#f43f5e;
+  --radius:14px; --shadow:0 8px 30px rgba(0,0,0,.35);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--brand2);text-decoration:none}
+a:hover{text-decoration:underline}
+.mono{font-family:var(--mono)}
+.wrap{max-width:1200px;margin:0 auto;padding:0 22px}
+header.top{position:sticky;top:0;z-index:50;background:rgba(13,17,23,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+.logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--brand),var(--deriv));display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px}
+nav.main{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav.main a{padding:8px 12px;border-radius:9px;color:var(--mut);font-size:14px;font-weight:500}
+nav.main a.active,nav.main a:hover{background:var(--panel2);color:var(--ink);text-decoration:none}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+section{padding:34px 0}
+h1{font-size:34px;line-height:1.15;margin:.2em 0 .3em;letter-spacing:-.5px}
+h2{font-size:22px;margin:0 0 .5em;letter-spacing:-.2px}
+h3{font-size:15px;margin:0 0 .4em;color:var(--ink)}
+p.lead{font-size:18px;color:var(--mut);max-width:70ch}
+.muted{color:var(--mut)}
+.dim{color:var(--dim)}
+.grid{display:grid;gap:16px}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.cols-2,.cols-3,.cols-4{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.card.tight{padding:14px}
+.hero{padding:56px 0 26px;border-bottom:1px solid var(--line);background:
+  radial-gradient(1200px 400px at 10% -10%,rgba(79,124,255,.14),transparent 60%),
+  radial-gradient(900px 400px at 90% 0%,rgba(16,185,129,.10),transparent 55%)}
+.badge{display:inline-flex;gap:8px;align-items:center;font-size:12px;color:var(--mut);border:1px solid var(--line);padding:5px 10px;border-radius:999px;margin-bottom:16px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;border:0;cursor:pointer;font-size:14px}
+.btn:hover{filter:brightness(1.08);text-decoration:none}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn.sm{padding:6px 11px;font-size:13px}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;border:1px solid transparent}
+.tag.Observed{color:var(--obs);border-color:color-mix(in srgb,var(--obs) 45%,transparent);background:color-mix(in srgb,var(--obs) 12%,transparent)}
+.tag.Claim{color:var(--claim);border-color:color-mix(in srgb,var(--claim) 45%,transparent);background:color-mix(in srgb,var(--claim) 12%,transparent)}
+.tag.Benchmark{color:var(--bench);border-color:color-mix(in srgb,var(--bench) 45%,transparent);background:color-mix(in srgb,var(--bench) 12%,transparent)}
+.tag.Derived{color:var(--deriv);border-color:color-mix(in srgb,var(--deriv) 45%,transparent);background:color-mix(in srgb,var(--deriv) 12%,transparent)}
+.tag.External{color:var(--ext);border-color:color-mix(in srgb,var(--ext) 45%,transparent);background:color-mix(in srgb,var(--ext) 12%,transparent)}
+.tag.Gap{color:var(--gap);border-color:color-mix(in srgb,var(--gap) 45%,transparent);background:color-mix(in srgb,var(--gap) 12%,transparent)}
+.flow{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+@media(max-width:900px){.flow{grid-template-columns:1fr 1fr}}
+.step{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;position:relative}
+.step .n{width:22px;height:22px;border-radius:6px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;margin-bottom:8px}
+.step h4{margin:0 0 4px;font-size:13px}
+.step p{margin:0;font-size:12px;color:var(--mut)}
+.kpi{display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.kpi .k{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.interval{margin:8px 0}
+.ivbar{position:relative;height:34px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.ivfill{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,color-mix(in srgb,var(--deriv) 30%,transparent),color-mix(in srgb,var(--brand) 34%,transparent));transition:left .5s cubic-bezier(.2,.8,.2,1),right .5s cubic-bezier(.2,.8,.2,1)}
+.ivbase{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);transition:left .5s cubic-bezier(.2,.8,.2,1)}
+.ivlabels{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:5px}
+.driver{border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:10px;background:var(--panel2)}
+.driver .row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.driver .name{font-weight:600;font-size:14px}
+.rng{display:flex;gap:8px;align-items:center}
+.rng input[type=number]{width:78px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px;font-family:var(--mono);font-size:13px}
+.rng span{font-size:11px;color:var(--dim)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+.evidence-item{display:flex;justify-content:space-between;gap:10px;padding:11px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--panel2)}
+.evidence-item.top{border-color:color-mix(in srgb,var(--deriv) 45%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--deriv) 25%,transparent) inset}
+.bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:6px}
+.bar > i{display:block;height:100%;background:var(--deriv)}
+.note{font-size:13px;color:var(--mut)}
+.callout{border-left:3px solid var(--brand);background:var(--panel2);padding:12px 14px;border-radius:0 10px 10px 0;font-size:13px;color:var(--mut)}
+.callout.warn{border-color:var(--warn)}
+.callout.bad{border-color:var(--bad)}
+.chip{display:inline-flex;gap:7px;align-items:center;font-size:12px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);color:var(--mut);cursor:pointer;user-select:none}
+.chip.on{background:color-mix(in srgb,var(--brand) 16%,transparent);border-color:var(--brand);color:var(--ink)}
+.verdict{font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px}
+.verdict.concordant{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.verdict.partial{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.verdict.conflict{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
+.footer{border-top:1px solid var(--line);color:var(--dim);font-size:13px;padding:26px 0 50px}
+.legend{display:flex;gap:8px;flex-wrap:wrap}
+.select{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font-size:14px}
+.hl{color:var(--brand2)}
+.spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:sp .8s linear infinite;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+.exfield input:focus{outline:2px solid var(--brand2);outline-offset:1px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.spacer{flex:1}
+.small{font-size:12px}
+.disclaimer{font-size:12px;color:var(--dim);border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+`;
+
+function shell() {
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${APP.name} — ${APP.tagline}</title>
+<meta name="description" content="Business X-Ray: an auditable, human-supervised first-pass assessment method that turns premises photographs into traceable financial scenarios for thin-file MSMEs."/>
+<style>${CSS}</style>
+</head><body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#/"><span class="logo">BX</span> ${APP.name}
+    <span class="pill">engine v${APP.engineVersion}</span></a>
+  <nav class="main" id="nav">
+    <a href="#/">Overview</a>
+    <a href="#/capture">Capture</a>
+    <a href="#/assess">Assessment</a>
+    <a href="#/demos">Demonstrations</a>
+    <a href="#/governance">Governance</a>
+    <a href="#/about">About</a>
+  </nav>
+</div></header>
+<main id="view"><div class="wrap"><section><p class="muted">Loading…</p></section></div></main>
+<footer class="footer"><div class="wrap">
+  ${APP.name} · engine v${APP.engineVersion} · registry ${APP.registryVersion} —
+  an auditable first-pass assessment method and a pre-registration-ready research protocol,
+  <b>not a validated credit-scoring model</b>. All figures are illustrative rule-engine outputs.
+</div></footer>
+<script>${CLIENT}</script>
+</body></html>`;
+}
+
+/* ------------------------------- CLIENT JS ------------------------------- */
+const CLIENT = String.raw`
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+let META=null, STATE=null;
+
+const fmtCr=(x)=>{ if(x==null||isNaN(x))return '—';
+  if(Math.abs(x)>=1e7)return '₹'+(x/1e7).toFixed(2)+' Cr';
+  if(Math.abs(x)>=1e5)return '₹'+(x/1e5).toFixed(2)+' L';
+  return '₹'+Math.round(x).toLocaleString('en-IN'); };
+const pct=(x)=>(x*100).toFixed(0)+'%';
+
+async function api(path,opts){ const r=await fetch(path,opts); return r.json(); }
+async function loadMeta(){ if(!META) META=await api('/api/meta'); return META; }
+
+function setNav(){ const h=location.hash||'#/';
+  $$('#nav a').forEach(a=>a.classList.toggle('active', a.getAttribute('href')===h.split('?')[0])); }
+
+function ivbar(I, domainLo, domainHi){
+  const span=Math.max(domainHi-domainLo,1e-9);
+  const l=((I.lo-domainLo)/span)*100, r=((domainHi-I.hi)/span)*100, b=((I.base-domainLo)/span)*100;
+  return '<div class="ivbar"><div class="ivfill" style="left:'+Math.max(0,l)+'%;right:'+Math.max(0,r)+'%"></div>'
+    +'<div class="ivbase" style="left:'+Math.min(100,Math.max(0,b))+'%"></div></div>';
+}
+
+/* ------------------------------- Overview -------------------------------- */
+function viewHome(){
+  const nc=META.nodeClasses.map(n=>'<span class="tag '+n.id+'">'+n.label+'</span>').join(' ');
+  const flow=META.workflow.map(s=>'<div class="step"><div class="n">'+s.n+'</div><h4>'+s.title+'</h4><p>'+s.detail+'</p></div>').join('');
+  return '<div class="hero"><div class="wrap">'
+    +'<span class="badge">● Human-supervised · evidence-first · auditable</span>'
+    +'<h1>Turn premises photographs into<br/><span class="hl">traceable financial scenarios</span></h1>'
+    +'<p class="lead">Thin-file micro, small & medium enterprises often lack verified accounts, yet their premises show visible evidence of activity. Business X-Ray converts a purpose-limited photo set and location context into a versioned evidence graph, sector-specific scenarios, a simplified P&L, working-capital indicators and an indicative review band — with every number traceable back to what was seen, claimed, benchmarked or derived.</p>'
+    +'<div class="toolbar" style="margin-top:18px"><a class="btn" href="#/assess">Open the assessment workspace →</a>'
+    +'<a class="btn ghost" href="#/demos">See worked demonstrations</a></div>'
+    +'</div></div>'
+    +'<div class="wrap"><section>'
+    +'<h2>The evidence-to-estimate workflow</h2>'
+    +'<p class="muted">Six modular stages. Provenance survives every stage; every stage is open to human review (paper, Fig. 1).</p>'
+    +'<div class="flow" style="margin-top:14px">'+flow+'</div>'
+    +'</section>'
+    +'<section><div class="grid cols-2">'
+    +'<div class="card"><h2>Six evidence-graph node classes</h2><p class="muted">What was seen, what was claimed, what was assumed, and what was derived are held apart as distinct nodes — so an error can be attributed to a node class, not the model as a whole.</p><div class="legend" style="margin:12px 0">'+nc+'</div>'
+    + META.nodeClasses.map(n=>'<div style="margin:8px 0"><span class="tag '+n.id+'">'+n.label+'</span> <span class="note">'+n.desc+'</span></div>').join('')
+    +'</div>'
+    +'<div class="card"><h2>What it is — and is not</h2>'
+    +'<div class="callout">Estimates carry <b>scenario intervals</b> that narrow as evidence arrives; the framework tells the field officer which item to collect next.</div>'
+    +'<div class="callout" style="margin-top:10px">Photo-derived scenarios are compared with independent tax, utility and payment records; <b>conflicts are reported, not averaged away</b>.</div>'
+    +'<div class="callout warn" style="margin-top:10px">It abstains when out of its depth, and a human credit officer always makes the final decision.</div>'
+    +'<div class="disclaimer" style="margin-top:12px">Outputs are an <b>auditable first-pass assessment</b> and a pre-registration-ready research protocol — <b>not</b> a validated credit-scoring model, and the review band is <b>not</b> a sanction recommendation.</div>'
+    +'</div></div></section>'
+
+    /* Positioning / impact */
+    +'<section><h2>Where Business X-Ray fits</h2>'
+    +'<p class="muted" style="max-width:80ch">Visual finance tools such as document-OCR balance-sheet readers and mobile receipt capture digitise records the borrower <b>already keeps</b> — statements, receipts, ledgers. They are powerful, but they presuppose those records exist. Thin-file MSMEs are defined by their absence: no audited statements, intermittent banking, cash-heavy trade. Business X-Ray reads the <b>premises itself</b>, and treats any documents that do exist as corroborating evidence, not a prerequisite.</p>'
+    +'<div class="card" style="margin-top:12px;overflow-x:auto"><table><thead><tr><th></th><th>Document-OCR &amp; receipt capture</th><th>Business X-Ray</th></tr></thead><tbody>'
+    +[['Primary input','Photos of statements, receipts, ledgers the borrower holds','Purpose-limited premises &amp; stock photographs + location context'],
+      ['Works for a true thin-file borrower','Limited — needs existing paperwork','Yes — designed for borrowers with no formal records'],
+      ['Output','Digitised line items / a populated ledger','Turnover, P&amp;L, working-capital &amp; trade-cycle <i>scenarios</i> with intervals'],
+      ['Uncertainty','Extraction confidence on a document','Explicit scenario interval that narrows with targeted evidence'],
+      ['Cash economy','Only what passes through the recorded channel','Banking-to-total ratio computed; cash share surfaced, not hidden'],
+      ['Trade cycle','Inferred from booked entries','Read from stock photos → measured inventory → DIO &amp; cycle'],
+      ['Provenance','Value ↔ source document','Every number ↔ Observed / Claim / Benchmark / Derived node'],
+     ].map(r=>'<tr><td><b>'+r[0]+'</b></td><td class="note">'+r[1]+'</td><td class="note">'+r[2]+'</td></tr>').join('')
+    +'</tbody></table></div>'
+    +'<div class="grid cols-4" style="margin-top:16px">'
+    +'<div class="card kpi"><span class="k">First-pass from</span><span class="v">3–10 photos</span><span class="small dim">no statements required</span></div>'
+    +'<div class="card kpi"><span class="k">Trade cycle</span><span class="v">read, not assumed</span><span class="small dim">stock photos → DIO → WCR</span></div>'
+    +'<div class="card kpi"><span class="k">Cash economy</span><span class="v">quantified</span><span class="small dim">banking-to-total ratio</span></div>'
+    +'<div class="card kpi"><span class="k">Every number</span><span class="v">traceable</span><span class="small dim">to an evidence node</span></div>'
+    +'</div>'
+    +'<p class="small dim" style="margin-top:10px">Complement, not replacement: where a borrower does have GST returns, bank credits or receipts, Business X-Ray ingests them as external signals to corroborate or conflict with the photo-derived scenario — it never averages a conflict away.</p>'
+    +'</section>'
+    +'</div>';
+}
+
+/* ------------------------------ Governance ------------------------------- */
+function viewGovernance(){
+  const r=META.registry;
+  const rows=Object.entries(r.sectors).map(([k,b])=>{
+    const s=META.sectors.find(x=>x.id===k);
+    return '<tr><td>'+(s?s.name:k)+'</td>'
+      +'<td class="num">'+b.gm.map(x=>x.toFixed(2)).join(' / ')+'</td>'
+      +'<td class="num">'+b.opex.map(x=>x.toFixed(2)).join(' / ')+'</td>'
+      +'<td class="num">'+b.dio+' / '+b.dso+' / '+b.dpo+'</td>'
+      +'<td class="num">'+b.eta+'</td></tr>';
+  }).join('');
+  const props=META.propositions.map(p=>'<div class="card tight"><h3><span class="hl">'+p.id+'</span> · '+p.title+'</h3><p class="note">'+p.text+'</p></div>').join('');
+  return '<div class="wrap"><section>'
+    +'<h1>Governance &amp; audit</h1>'
+    +'<p class="lead">Benchmark governance matters as much as model governance. Every sector constant carries an owner, source, effective period, plausible range and version; a benchmark change creates a new version and historical assessments remain reproducible.</p>'
+    +'<div class="card" style="margin-top:8px"><div class="toolbar"><h2 style="margin:0">Benchmark registry</h2><span class="spacer"></span>'
+    +'<span class="pill">v'+r.version+'</span><span class="pill">'+r.effectivePeriod+'</span><span class="pill">'+r.owner+'</span></div>'
+    +'<table><thead><tr><th>Sector</th><th class="num">Gross margin γ (lo/base/hi)</th><th class="num">Opex ω (lo/base/hi)</th><th class="num">DIO/DSO/DPO</th><th class="num">η kWh/₹1k</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<p class="disclaimer" style="margin-top:12px">'+r.note+'</p></div>'
+    +'<section><h2>Falsifiable propositions</h2><p class="muted">The framework is designed to generate testable claims; these are specified before any final test set is accessed.</p><div class="grid cols-3" style="margin-top:12px">'+props+'</div></section>'
+    +'<section><h2>Minimum model-risk &amp; change-control artifacts</h2>'
+    +'<table><thead><tr><th>Control object</th><th>Required content</th><th>Owner</th><th>Release gate</th></tr></thead><tbody>'
+    +[['Capture protocol','Purpose, permitted shots, minimisation, quality threshold, recapture rules','Credit policy + privacy','Legal approval + field pilot'],
+      ['Benchmark registry','Source, range, geography, period, owner, drift threshold','Sector risk owner','Independent challenge + version sign-off'],
+      ['Extraction component','Model/prompt version, test set, OCR/count error, failure modes','Model owner','Validation + rollback plan'],
+      ['Financial model','Equation, assumptions, sensitivity, applicability, abstention','Credit analytics','Back-test + policy approval'],
+      ['Triangulation module','Signal definition, period alignment, mapping quality, conflict logic','Data owner','Data-quality + legal review'],
+      ['Policy overlay','Affordability inputs, haircuts, exclusions, human approval','Regulated lender','Board/committee-approved policy'],
+      ['Monitoring','Error, coverage, drift, fairness, override & complaint metrics','Independent validation','Thresholds + escalation route']
+     ].map(r=>'<tr><td><b>'+r[0]+'</b></td><td class="note">'+r[1]+'</td><td class="note">'+r[2]+'</td><td class="note">'+r[3]+'</td></tr>').join('')
+    +'</tbody></table></section>'
+    +'</section></div>';
+}
+
+/* -------------------------------- About ---------------------------------- */
+function viewAbout(){
+  return '<div class="wrap"><section>'
+    +'<h1>About Business X-Ray</h1>'
+    +'<p class="lead">Business X-Ray is a design-science artifact: a human-supervised framework that converts a purpose-limited set of premises photographs and location context into traceable observations, sector-specific financial scenarios, a simplified profit-and-loss view, working-capital indicators and an indicative review band.</p>'
+    +'<div class="grid cols-2">'
+    +'<div class="card"><h2>Design principles</h2><ul class="note">'
+    +'<li><b>Provenance over precision.</b> Ranges propagate when evidence is incomplete, so precision is never manufactured from uncertain inputs.</li>'
+    +'<li><b>Closable uncertainty.</b> Scenario intervals narrow monotonically as targeted evidence arrives — unless evidence conflicts, in which case the interval stays wide and the conflict is explained.</li>'
+    +'<li><b>Conflict, not blending.</b> External signals corroborate or challenge the photo-derived estimate; they never silently overwrite it.</li>'
+    +'<li><b>Abstention.</b> The system declines when a material driver cannot be constrained.</li>'
+    +'<li><b>Human governance.</b> Eligibility, pricing, limit-setting and adverse action remain with the regulated lender.</li>'
+    +'</ul></div>'
+    +'<div class="card"><h2>The equations</h2><table class="mono" style="font-size:12px"><tbody>'
+    +[['R̂ₛ = Πdᵢ × D','Revenue from sector activity drivers × operating days (2)'],
+      ['EBITDAₛ = R̂ₛ(γₛ − ωₛ)','Operating-surplus proxy (3)'],
+      ['WCR = Inv + Rec − Pay','Working-capital requirement (4)'],
+      ['WCR = (DIO·COGS + DSO·R̂ₛ − DPO·COGS)/365','(5)'],
+      ['W(I) = y_hi − y_lo','Scenario-interval width (6)'],
+      ['Aⱼ = E[W(I)−W(I|eⱼ)]·qⱼ·vⱼ /(costⱼ+ε)','Evidence-acquisition score (7)'],
+      ['R̂ₛᵉˡᵉᶜ = E_period/ηₛ × κ','Energy-based revenue proxy (8)'],
+      ['Cₖ = |I_photo ∩ Iₖ| / |I_photo ∪ Iₖ|','External concordance (9)'],
+     ].map(r=>'<tr><td>'+r[0]+'</td><td class="note">'+r[1]+'</td></tr>').join('')
+    +'</tbody></table></div></div>'
+    +'<div class="disclaimer" style="margin-top:16px">This platform reproduces the framework of the manuscript <i>“Business X-Ray: An Evidence-Graph Framework for Thin-File Micro, Small and Medium Enterprise Underwriting from Premises Photographs.”</i> Figures shown are illustrative rule-engine outputs; the paper reports no measured accuracy and sets out the blinded, multi-sector study a validated claim would require.</div>'
+    +'</section></div>';
+}
+
+/* ----------------------------- Demonstrations ---------------------------- */
+async function viewDemos(){
+  const scrap=await api('/api/demo/scrap');
+  const sup=await api('/api/demo/supermarket');
+  const s=scrap.result, tri=s.triangulation;
+  const tRow=(lbl,I)=>'<tr><td>'+lbl+'</td><td class="num">'+fmtCr(I.lo)+'</td><td class="num">'+fmtCr(I.base)+'</td><td class="num">'+fmtCr(I.hi)+'</td></tr>';
+  const scrapCard='<div class="card"><div class="toolbar"><h2 style="margin:0">'+scrap.demo.title+'</h2><span class="spacer"></span><a class="btn sm" href="#/assess?demo=scrap">Load in workspace →</a></div>'
+    +'<p class="note">'+scrap.demo.story+'</p>'
+    +'<table style="margin-top:8px"><thead><tr><th></th><th class="num">Conservative</th><th class="num">Base</th><th class="num">Optimistic</th></tr></thead><tbody>'
+    +tRow('Turnover', {lo:s.turnover.conservative,base:s.turnover.base,hi:s.turnover.optimistic})
+    +tRow('EBITDA', s.pnl.ebitda)
+    +tRow('Working-capital req.', s.pnl.wcr)
+    +'</tbody></table>'
+    +'<div class="grid cols-3" style="margin-top:12px">'
+    +'<div class="kpi"><span class="k">Net operating cycle</span><span class="v">'+s.pnl.cycleDays+'d</span></div>'
+    +'<div class="kpi"><span class="k">Energy proxy</span><span class="v">'+fmtCr(tri.energyProxy.base)+'</span></div>'
+    +'<div class="kpi"><span class="k">Concordance C</span><span class="v">'+tri.concordance.toFixed(2)+'</span></div>'
+    +'</div>'
+    +'<div class="callout bad" style="margin-top:12px">Estimated cash share ≈ '+tri.cashSharePct+'% — surfaced as a lender risk & verification priority. Weighbridge slips, rate-board evidence and reconciled bank/GST records would be required before this scenario could influence a credit decision.</div>'
+    +'</div>';
+  const from=sup.result.narrowing.from, to=sup.result.narrowing.to;
+  const supCard='<div class="card"><div class="toolbar"><h2 style="margin:0">'+sup.demo.title+'</h2><span class="spacer"></span><a class="btn sm" href="#/assess?demo=supermarket">Load in workspace →</a></div>'
+    +'<p class="note">'+sup.demo.story+'</p>'
+    +'<h3 style="margin-top:10px">Interval narrowing</h3>'
+    +'<div class="interval"><div class="ivlabels"><span>Before — ±'+pct(from/2)+' (relative width '+pct(from)+')</span></div>'
+    + ivbar({lo:sup.result.initial.turnover.conservative,base:sup.result.initial.turnover.base,hi:sup.result.initial.turnover.optimistic}, sup.result.initial.turnover.conservative*0.9, sup.result.initial.turnover.optimistic*1.05)
+    +'<div class="ivlabels"><span>'+fmtCr(sup.result.initial.turnover.conservative)+'</span><span>base '+fmtCr(sup.result.initial.turnover.base)+'</span><span>'+fmtCr(sup.result.initial.turnover.optimistic)+'</span></div></div>'
+    +'<div class="interval" style="margin-top:14px"><div class="ivlabels"><span>After 3 gaps closed — ±'+pct(to/2)+' (relative width '+pct(to)+')</span></div>'
+    + ivbar({lo:sup.result.closed.turnover.conservative,base:sup.result.closed.turnover.base,hi:sup.result.closed.turnover.optimistic}, sup.result.initial.turnover.conservative*0.9, sup.result.initial.turnover.optimistic*1.05)
+    +'<div class="ivlabels"><span>'+fmtCr(sup.result.closed.turnover.conservative)+'</span><span>base '+fmtCr(sup.result.closed.turnover.base)+'</span><span>'+fmtCr(sup.result.closed.turnover.optimistic)+'</span></div></div>'
+    +'<div class="callout" style="margin-top:12px">Monotone interval reduction within the rule engine — this demonstrates mechanism, not that the final interval achieves any particular statistical coverage.</div>'
+    +'</div>';
+  return '<div class="wrap"><section><h1>Worked demonstrations</h1>'
+    +'<p class="lead">Two deterministic workflow demonstrations from the paper (§6). They illustrate internal consistency, traceable reconciliation and evidence closure — not predictive accuracy.</p>'
+    +'<div class="grid cols-2" style="margin-top:8px">'+scrapCard+supCard+'</div></section></div>';
+}
+
+/* ----------------------------- Assessment -------------------------------- */
+function defaultState(sectorId){
+  const s=META.sectors.find(x=>x.id===sectorId);
+  const drivers={}; s.drivers.forEach(d=>drivers[d.key]={lo:d.lo,base:d.base,hi:d.hi});
+  return { sector:sectorId, drivers, external:{energy:{kwh:0,months:1},gstin:null,banking:null,cashSharePct:null},
+           inventory:{lines:[]}, captures:{}, extracted:{}, audit:[], aiBusy:{},
+           policy:{dscr:1.5,haircut:0.25,tenorMonths:36,existingObligations:0},
+           providedShots:s.shotList.slice(0,5), flags:{} };
+}
+
+async function viewAssess(query){
+  const params=new URLSearchParams(query||'');
+  if(params.get('demo')==='scrap'){ const d=await api('/api/demo/scrap');
+    STATE=defaultState('scrap'); STATE.drivers=d.state.drivers; STATE.external=Object.assign(STATE.external,d.state.external); if(d.state.inventory)STATE.inventory=d.state.inventory; STATE.providedShots=[...META.sectors.find(x=>x.id==='scrap').shotList]; }
+  else if(params.get('demo')==='supermarket'){ const d=await api('/api/demo/supermarket');
+    STATE=defaultState('retail'); STATE.drivers=d.state.closed; STATE.providedShots=[...META.sectors.find(x=>x.id==='retail').shotList]; }
+  else if(!STATE){ STATE=defaultState('retail'); }
+  render(); return '<div class="wrap" id="assessRoot"></div>';
+}
+
+function sectorPicker(){
+  return '<select class="select" id="sectorSel">'+META.sectors.map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+s.name+'</option>').join('')+'</select>';
+}
+
+function driverInputs(){
+  const s=META.sectors.find(x=>x.id===STATE.sector);
+  return s.drivers.map(d=>{
+    const v=STATE.drivers[d.key];
+    return '<div class="driver"><div class="row"><span class="name">'+d.label+' <span class="dim small">('+d.unit+')</span></span><span class="tag '+d.cls+'">'+d.cls+'</span></div>'
+      +'<div class="rng"><span>lo</span><input type="number" step="any" data-k="'+d.key+'" data-b="lo" value="'+v.lo+'"/>'
+      +'<span>base</span><input type="number" step="any" data-k="'+d.key+'" data-b="base" value="'+v.base+'"/>'
+      +'<span>hi</span><input type="number" step="any" data-k="'+d.key+'" data-b="hi" value="'+v.hi+'"/></div></div>';
+  }).join('');
+}
+
+function shotChips(){
+  const s=META.sectors.find(x=>x.id===STATE.sector);
+  return s.shotList.map(sh=>'<span class="chip'+(STATE.providedShots.includes(sh)?' on':'')+'" data-shot="'+sh+'">'+ (STATE.providedShots.includes(sh)?'✓ ':'') +sh+'</span>').join('');
+}
+
+function flagChips(){
+  const flags=[['mixed','Mixed business, no separable zones'],['hidden','Hidden inventory dominates'],['seasonal','Seasonal shutdown'],['specialized','Specialised equipment, no benchmark'],['stale','Inconsistent / stale capture'],['reuse','Possible photo reuse']];
+  return flags.map(f=>'<span class="chip'+(STATE.flags[f[0]]?' on':'')+'" data-flag="'+f[0]+'">'+f[1]+'</span>').join('');
+}
+const esc=(s)=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function invRow(l,i){
+  const n=(f,v)=>'<input type="number" step="any" data-inv="'+i+'" data-f="'+f+'" value="'+(v==null?'':v)+'"/>';
+  return '<div class="driver"><div class="row"><input data-inv="'+i+'" data-f="label" placeholder="Stock line (e.g. ferrous piles)" value="'+esc(l.label)+'" style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px;font-size:13px"/>'
+    +'<span class="tag Observed">Observed</span><button class="btn ghost sm" data-invdel="'+i+'">✕</button></div>'
+    +'<div class="rng"><span>qty '+(l.unit||'')+'</span>'+n('qtyLo',l.qtyLo)+n('qtyBase',l.qtyBase)+n('qtyHi',l.qtyHi)+'</div>'
+    +'<div class="rng"><span>₹ / '+(l.unit||'unit')+'</span>'+n('uvLo',l.uvLo)+n('uvBase',l.uvBase)+n('uvHi',l.uvHi)+'</div></div>';
+}
+function inventoryCard(result){
+  const lines=(STATE.inventory&&STATE.inventory.lines)||[];
+  const fin=result.pnl, src=fin.inventorySource;
+  const rows=lines.length?lines.map(invRow).join(''):'<p class="note">No stock lines yet. Add lines from your inventory / stock-zone photographs to compute an evidence-backed trade cycle. Until then, DIO uses the sector benchmark.</p>';
+  const inv=fin.inventory;
+  const cyc='<div class="grid cols-3" style="margin-top:10px">'
+    +'<div class="kpi"><span class="k">Inventory value</span><span class="v" style="font-size:20px">'+fmtCr(inv.base)+'</span><span class="small dim">'+fmtCr(inv.lo)+'–'+fmtCr(inv.hi)+'</span></div>'
+    +'<div class="kpi"><span class="k">Days inventory (DIO)</span><span class="v" style="font-size:20px">'+fin.dio+'d</span><span class="small dim">'+(src==='observed'?'from stock photos':'benchmark')+'</span></div>'
+    +'<div class="kpi"><span class="k">Net trade cycle</span><span class="v" style="font-size:20px">'+fin.cycleDays+'d</span><span class="small dim">DIO+DSO−DPO</span></div>'
+    +'</div>';
+  return '<div class="card" style="margin-bottom:16px"><div class="toolbar"><h2 style="margin:0">Inventory &amp; trade cycle</h2>'
+    +'<span class="tag '+(src==='observed'?'Observed':'Benchmark')+'">'+(src==='observed'?'evidence-backed':'benchmark DIO')+'</span>'
+    +'<span class="spacer"></span><button class="btn ghost sm" id="invAdd">+ Add stock line</button></div>'
+    +'<p class="note">Map stock/stocking photographs into a worksheet: quantity × unit value per line → measured inventory. This drives DIO and the working-capital identity WCR = Inventory + Receivables − Payables (Eq 4), so the trade cycle is read from the yard, not assumed.</p>'
+    +rows+cyc+'</div>';
+}
+function cashGauge(bankPct){
+  const b=Math.min(100,Math.max(0,bankPct));
+  return '<div class="ivbar" style="height:26px"><div style="position:absolute;left:0;top:0;bottom:0;width:'+b+'%;background:color-mix(in srgb,var(--ok) 45%,transparent)"></div>'
+    +'<div style="position:absolute;right:0;top:0;bottom:0;width:'+(100-b)+'%;background:color-mix(in srgb,var(--bad) 40%,transparent)"></div>'
+    +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:12px;font-weight:700"><span>Banked '+b.toFixed(0)+'%</span><span>Cash '+(100-b).toFixed(0)+'%</span></div></div>';
+}
+function bankingBlock(result){
+  const bk=(STATE.external&&STATE.external.banking)||{credits:0,months:1,channels:1};
+  const tri=result.triangulation, b=tri&&tri.banking;
+  const inp='<div class="toolbar"><span class="note">Banked credits (₹ / period):</span><input class="mono" id="bkCredits" type="number" style="width:120px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px" value="'+(bk.credits||0)+'"/>'
+    +'<span class="note">over</span><input class="mono" id="bkMonths" type="number" style="width:56px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px" value="'+(bk.months||1)+'"/><span class="note">months · channel coverage</span>'
+    +'<input class="mono" id="bkCh" type="number" step="0.05" min="0.05" max="1" style="width:64px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px" value="'+(bk.channels||1)+'"/></div>';
+  if(!b) return inp+'<p class="note">Enter bank/UPI/POS credits to compute the banking-to-total ratio (cash share is the residual).</p>';
+  return inp+cashGauge(b.bankingSharePct)
+    +'<div class="grid cols-3" style="margin-top:10px">'
+    +'<div class="kpi"><span class="k">Banked turnover (implied)</span><span class="v" style="font-size:18px">'+fmtCr(b.bankedAnnual)+'/yr</span></div>'
+    +'<div class="kpi"><span class="k">Cash share</span><span class="v" style="font-size:18px">'+b.cashSharePct+'%</span></div>'
+    +'<div class="kpi"><span class="k">Verdict</span><span class="verdict '+b.verdict+'" style="align-self:start;margin-top:4px">'+b.verdict+'</span></div>'
+    +'</div>'
+    +'<p class="small dim" style="margin-top:8px">Banking share = banked credits ÷ photo-derived turnover; cash share is the residual. A high cash share is surfaced as a verification priority — never silently reconciled away.</p>';
+}
+
+async function render(){
+  const root=$('#assessRoot'); if(!root) return;
+  const result=await api('/api/estimate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(STATE)});
+  const s=META.sectors.find(x=>x.id===STATE.sector);
+  const T={lo:result.turnover.conservative,base:result.turnover.base,hi:result.turnover.optimistic};
+  const dLo=T.lo*0.85, dHi=T.hi*1.1;
+
+  const evi=result.evidence.items.map((e,i)=>'<div class="evidence-item'+(i===0?' top':'')+'">'
+    +'<div><div><b>'+e.label+'</b> <span class="tag '+e.cls+'">'+e.cls+'</span></div>'
+    +'<div class="note">'+e.note+'</div>'
+    +'<div class="bar"><i style="width:'+Math.min(100,e.expectedWidthReductionPct*100)+'%"></i></div>'
+    +'<div class="small dim">expected interval reduction '+pct(e.expectedWidthReductionPct)+' · q='+e.q+' · v='+e.v+' · burden='+e.cost+'</div></div>'
+    +'<div style="text-align:right"><div class="small dim">score</div><div class="mono" style="font-size:18px;font-weight:700">'+ (e.acquisitionScore>=1e5?fmtCr(e.acquisitionScore):Math.round(e.acquisitionScore).toLocaleString('en-IN')) +'</div>'
+    +(i===0?'<div class="tag Derived" style="margin-top:6px">collect next</div>':'')+'</div></div>').join('');
+
+  const tri=result.triangulation;
+  let triHtml='<p class="note">Add a utility meter reading and external signals to triangulate.</p>';
+  if(tri && (tri.energyProxy || (tri.signals&&tri.signals.length))){
+    triHtml=(tri.signals||[]).map(sg=>'<div style="margin-bottom:8px"><span class="verdict '+sg.verdict+'">'+sg.verdict+'</span> <span class="note">'+sg.detail+'</span></div>').join('');
+  }
+
+  const ab=result.abstention;
+  const abHtml=ab.abstain
+    ? '<div class="callout bad"><b>Abstain.</b> '+ab.reasons.join('; ')+'. The framework declines rather than silently replacing the output.</div>'
+    : '<div class="callout"><b>Within applicability.</b> No mandatory abstention condition triggered. A human credit officer still makes the final decision.</div>';
+
+  const pnl=result.pnl;
+  const pnlRow=(lbl,I,tag)=>'<tr><td>'+lbl+(tag?' <span class="tag '+tag+'">'+tag+'</span>':'')+'</td><td class="num">'+fmtCr(I.lo)+'</td><td class="num">'+fmtCr(I.base)+'</td><td class="num">'+fmtCr(I.hi)+'</td></tr>';
+
+  const rb=result.reviewBand;
+
+  root.innerHTML=
+    '<section><div class="toolbar"><h1 style="margin:0;font-size:26px">Assessment workspace</h1><span class="spacer"></span>'
+    +sectorPicker()
+    +'<button class="btn ghost sm" id="resetBtn">Reset</button>'
+    +'<a class="btn ghost sm" href="#/demos">Demos</a></div>'
+    +'<p class="muted small">Revenue driver: <span class="mono">'+s.revenueFormula+'</span> · registry v'+result.registry.version+' ('+result.registry.effectivePeriod+')</p>'
+
+    /* headline results */
+    +'<div class="grid cols-4" style="margin:6px 0 16px">'
+    +'<div class="card kpi"><span class="k">Conservative turnover</span><span class="v">'+fmtCr(T.lo)+'</span></div>'
+    +'<div class="card kpi"><span class="k">Base turnover</span><span class="v">'+fmtCr(T.base)+'</span></div>'
+    +'<div class="card kpi"><span class="k">Optimistic turnover</span><span class="v">'+fmtCr(T.hi)+'</span></div>'
+    +'<div class="card kpi"><span class="k">Scenario width</span><span class="v">±'+pct(result.turnover.relWidth/2)+'</span></div>'
+    +'</div>'
+
+    +'<div class="card" style="margin-bottom:16px"><h3>Turnover scenario interval <span class="tag Derived">Derived</span></h3>'
+    + ivbar(T,dLo,dHi)
+    +'<div class="ivlabels"><span>'+fmtCr(T.lo)+' (conservative)</span><span>base '+fmtCr(T.base)+'</span><span>'+fmtCr(T.hi)+' (optimistic)</span></div>'
+    +'<p class="small dim" style="margin:8px 0 0">Interval narrows monotonically as evidence arrives (unless signals conflict). A ±15% target is an operational stopping threshold, not a coverage claim.</p></div>'
+
+    +'<div class="grid cols-2">'
+    /* LEFT: inputs */
+    +'<div>'
+    +'<div class="card" style="margin-bottom:16px"><h2>Evidence graph — drivers</h2>'
+    +'<p class="note">Each driver is interval-valued and tagged by node class. Edit ranges to reflect what the photographs and claims support.</p>'
+    + driverInputs()
+    +'</div>'
+    + inventoryCard(result)
+    +'<div class="card" style="margin-bottom:16px"><h2>Capture coverage</h2><p class="note">Purpose-limited shot list ('+result.quality.shotsProvided+'/'+result.quality.shotsRequired+' captured). Toggle what you actually have.</p><div class="legend" style="margin-top:8px">'+shotChips()+'</div></div>'
+    +'<div class="card"><h2>Abstention flags</h2><p class="note">Mandatory abstention conditions (paper §3.3).</p><div class="legend" style="margin:8px 0">'+flagChips()+'</div>'+abHtml+'</div>'
+    +'</div>'
+    /* RIGHT: outputs */
+    +'<div>'
+    +'<div class="card" style="margin-bottom:16px"><h2>Simplified P&amp;L &amp; working capital <span class="tag Derived">Derived</span></h2>'
+    +'<table><thead><tr><th></th><th class="num">Cons.</th><th class="num">Base</th><th class="num">Optim.</th></tr></thead><tbody>'
+    +pnlRow('Revenue',pnl.revenue)
+    +pnlRow('Gross profit',pnl.grossProfit)
+    +pnlRow('Operating expense',pnl.opex)
+    +pnlRow('EBITDA (surplus proxy)',pnl.ebitda)
+    +pnlRow('Inventory'+(pnl.inventorySource==='observed'?'':' (benchmark)'),pnl.inventory,pnl.inventorySource==='observed'?'Observed':'Benchmark')
+    +pnlRow('Receivables',pnl.receivables)
+    +pnlRow('Payables',pnl.payables)
+    +pnlRow('Working-capital req.',pnl.wcr)
+    +'</tbody></table>'
+    +'<p class="small dim" style="margin-top:6px">Trade cycle '+pnl.cycleDays+' days (DIO '+pnl.dio+(pnl.inventorySource==='observed'?' from stock photos':' benchmark')+' + DSO '+pnl.margins.dso+' − DPO '+pnl.margins.dpo+') · γ '+pnl.margins.gm[1]+' · ω '+pnl.margins.opex[1]+'. WCR from identity Inventory + Receivables − Payables (Eq 4). Margins are <span class="tag Benchmark">Benchmark</span> nodes.</p></div>'
+
+    +'<div class="card" style="margin-bottom:16px"><h2>Next evidence to collect</h2><p class="note">Ranked by expected interval reduction per unit of field burden (Equation 7). Highest score = collect next.</p>'+evi+'</div>'
+
+    +'<div class="card" style="margin-bottom:16px"><h2>External triangulation</h2>'
+    +'<div class="toolbar"><span class="note">Utility meter (kWh / month):</span><input class="mono" style="width:110px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 8px" type="number" id="kwh" value="'+(STATE.external.energy?STATE.external.energy.kwh:0)+'"/>'
+    +'<span class="chip'+(STATE.external.gstin?' on':'')+'" id="gstinChip">GSTIN syntax-valid</span></div>'
+    + triHtml
+    +'<h3 style="margin:14px 0 6px">Banking vs cash <span class="tag External">External signal</span></h3>'
+    + bankingBlock(result)
+    +'<p class="small dim" style="margin-top:8px">Concordance / conflict only — external signals never silently overwrite the photo-derived estimate.</p></div>'
+
+    +'<div class="card"><h2>Indicative review band <span class="tag Gap">policy overlay</span></h2>'
+    +'<div class="grid cols-2"><div class="kpi"><span class="k">Conservative exposure</span><span class="v">'+fmtCr(rb.conservative)+'</span></div><div class="kpi"><span class="k">Base exposure</span><span class="v">'+fmtCr(rb.base)+'</span></div></div>'
+    +'<div class="disclaimer" style="margin-top:10px">'+rb.disclaimer+'</div></div>'
+    +'</div>'
+    +'</div></section>';
+
+  wireAssess();
+}
+
+function wireAssess(){
+  $('#sectorSel') && ($('#sectorSel').onchange=(e)=>{ STATE=defaultState(e.target.value); render(); });
+  $('#resetBtn') && ($('#resetBtn').onclick=()=>{ STATE=defaultState(STATE.sector); render(); });
+  $$('#assessRoot input[data-k]').forEach(inp=>{
+    inp.oninput=debounce(()=>{ const k=inp.dataset.k,b=inp.dataset.b; STATE.drivers[k][b]=parseFloat(inp.value)||0; render(); },220);
+  });
+  $$('#assessRoot .chip[data-shot]').forEach(c=>c.onclick=()=>{ const sh=c.dataset.shot; const i=STATE.providedShots.indexOf(sh); if(i>=0)STATE.providedShots.splice(i,1); else STATE.providedShots.push(sh); render(); });
+  $$('#assessRoot .chip[data-flag]').forEach(c=>c.onclick=()=>{ const f=c.dataset.flag; STATE.flags[f]=!STATE.flags[f]; render(); });
+  $('#kwh') && ($('#kwh').oninput=debounce(()=>{ STATE.external.energy={kwh:parseFloat($('#kwh').value)||0,months:1}; render(); },260));
+  $('#gstinChip') && ($('#gstinChip').onclick=()=>{ STATE.external.gstin=STATE.external.gstin?null:{status:'syntax-valid'}; render(); });
+  // inventory worksheet
+  $$('#assessRoot input[data-inv]').forEach(inp=>{ const i=+inp.dataset.inv,f=inp.dataset.f;
+    if(f==='label'){ inp.oninput=()=>{ if(STATE.inventory.lines[i]) STATE.inventory.lines[i].label=inp.value; }; }
+    else { inp.oninput=debounce(()=>{ if(STATE.inventory.lines[i]) STATE.inventory.lines[i][f]=parseFloat(inp.value)||0; render(); },320); } });
+  $('#invAdd') && ($('#invAdd').onclick=()=>{ STATE.inventory.lines.push({label:'',unit:'unit',qtyLo:0,qtyBase:0,qtyHi:0,uvLo:0,uvBase:0,uvHi:0}); render(); });
+  $$('#assessRoot [data-invdel]').forEach(b=>b.onclick=()=>{ STATE.inventory.lines.splice(+b.dataset.invdel,1); render(); });
+  // banking vs cash
+  const readBanking=()=>{ const c=parseFloat(($('#bkCredits')||{}).value)||0; const m=parseFloat(($('#bkMonths')||{}).value)||1; const ch=parseFloat(($('#bkCh')||{}).value)||1; return c>0?{credits:c,months:m,channels:ch}:null; };
+  ['#bkCredits','#bkMonths','#bkCh'].forEach(id=>{ const e=$(id); if(e) e.oninput=debounce(()=>{ STATE.external.banking=readBanking(); render(); },320); });
+}
+
+function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+
+/* ---------------------- Capture (guided + multimodal AI) ----------------- */
+function viewCapture(query){
+  const params=new URLSearchParams(query||'');
+  if(!STATE) STATE=defaultState(params.get('sector')||'retail');
+  if(params.get('sector')&&params.get('sector')!==STATE.sector){ STATE=defaultState(params.get('sector')); }
+  STATE.captures=STATE.captures||{}; STATE.capSkipped=STATE.capSkipped||{}; STATE.extracted=STATE.extracted||{}; STATE.audit=STATE.audit||[]; STATE.aiBusy=STATE.aiBusy||{};
+  if(typeof STATE.capStep!=='number') STATE.capStep=0;
+  return '<div class="wrap" id="captureRoot"></div>';
+}
+function domainChips(ids){ if(!ids||!ids.length) return '';
+  return ids.map(id=>{ const d=META.dataDomains.find(x=>x.id===id); return '<span class="tag External" title="'+(d?d.sources:'')+'">'+(d?d.name:id)+'</span>'; }).join(' '); }
+function capIri(){ const resolved=new Set();
+  Object.keys(STATE.captures).forEach(fid=>{ (META.facets[fid]&&META.facets[fid].domains||[]).forEach(d=>resolved.add(d)); });
+  const total=META.dataDomains.length; return { resolved, total, iri: total?resolved.size/total:0 }; }
+function filmstrip(pack){
+  return '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px">'+pack.map((fid,i)=>{
+    const done=!!STATE.captures[fid], skip=STATE.capSkipped[fid], cur=i===STATE.capStep;
+    const col= done?'var(--deriv)': skip?'var(--warn)': 'var(--line)';
+    return '<span title="'+META.facets[fid].label+'" data-jump="'+i+'" style="cursor:pointer;width:24px;height:7px;border-radius:3px;background:'+col+';'+(cur?'box-shadow:0 0 0 2px var(--brand2)':'')+'"></span>';
+  }).join('')+'</div>';
+}
+
+/* ---- Multimodal extraction (the paper's g(·) step, running in-browser) --- */
+/* Per-facet field the AI attempts to read from the photo. */
+const FEX={
+  exterior:{field:'business_name',label:'Business name',type:'text'},
+  qr_code:{field:'upi_vpa',label:'UPI VPA (payee address)',type:'qr'},
+  utility_meter:{field:'consumer_no',label:'Electricity consumer number',type:'num'},
+  gst_board:{field:'gstin',label:'GSTIN',type:'gstin'},
+  udyam:{field:'udyam_no',label:'Udyam registration number',type:'udyam'},
+  pukka_invoice:{field:'invoice_amt',label:'Invoice amount (₹)',type:'amount'},
+  price_board:{field:'price',label:'Price (₹)',type:'amount'},
+  weighbridge:{field:'weight',label:'Net weight',type:'text'},
+  licence:{field:'licence_no',label:'Licence number',type:'text'},
+};
+let _tessP=null;
+function loadTesseract(){ if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  if(_tessP) return _tessP;
+  _tessP=new Promise((res,rej)=>{ const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    sc.onload=()=>res(window.Tesseract); sc.onerror=()=>rej(new Error('OCR engine unavailable')); document.head.appendChild(sc); });
+  return _tessP; }
+function imgQuality(file){ return new Promise((resolve)=>{ const img=new Image();
+  img.onload=()=>{ try{ const w=240,h=Math.max(1,Math.round(img.height*(240/img.width)));
+    const c=document.createElement('canvas'); c.width=w;c.height=h; const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,w,h);
+    const d=ctx.getImageData(0,0,w,h).data; const g=new Float64Array(w*h);
+    for(let i=0;i<w*h;i++) g[i]=0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2];
+    let mean=0,n=0; const L=[]; for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){ const i=y*w+x; const v=4*g[i]-g[i-1]-g[i+1]-g[i-w]-g[i+w]; L.push(v); mean+=v; n++; }
+    mean/=n||1; let vv=0; for(const v of L) vv+=(v-mean)*(v-mean); vv/=n||1;
+    const score=Math.max(1,Math.min(5, 1+(Math.log10(Math.max(vv,1))-1)*(4/2.7)));
+    resolve({score:Math.round(score*10)/10, sharpness:Math.round(vv)}); }catch(_){ resolve(null); } };
+  img.onerror=()=>resolve(null); img.src=URL.createObjectURL(file); }); }
+async function ocr(file){ const T=await loadTesseract(); const url=URL.createObjectURL(file);
+  try{ const {data}=await T.recognize(url,'eng'); return {text:data.text||'', conf:(data.confidence||0)/100}; }
+  finally{ try{URL.revokeObjectURL(url);}catch(_){} } }
+function extractField(text,type){ const t=(text||''); const clean=t.replace(/\s/g,'');
+  if(type==='gstin'){
+    let m=clean.match(/\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]/i); if(m) return {value:m[0].toUpperCase(), conf:0.9};
+    let lm=clean.match(/GSTIN[:\-]?([0-9A-Z]{13,15})/i); if(lm) return {value:lm[1].toUpperCase(), conf:0.55};
+    let gm=clean.match(/\b[0-9A-Z]{15}\b/); if(gm) return {value:gm[0].toUpperCase(), conf:0.5};
+    return {value:'', conf:0}; }
+  if(type==='udyam'){ let m=t.match(/UDYAM-?[A-Z]{2}-?\d{2}-?\d{7}/i); if(m) return {value:m[0].toUpperCase(), conf:0.85};
+    let lm=t.match(/UDYAM[^\n]{0,30}/i); return {value:lm?lm[0].replace(/\s+/g,''):'', conf:lm?0.5:0}; }
+  if(type==='amount'){ const m=t.match(/(?:₹|rs\.?|inr|total|amount)\s*[:\-]?\s*([\d,]{2,})/i)||t.match(/\b([\d,]{3,})\b/); return {value:m?m[1].replace(/,/g,''):'', conf:m?0.6:0}; }
+  if(type==='num'){ const lm=t.match(/(?:consumer|meter|account|no|number)\D{0,6}(\d{6,})/i); if(lm) return {value:lm[1], conf:0.75};
+    const m=t.match(/\b\d{6,}\b/); return {value:m?m[0]:'', conf:m?0.65:0}; }
+  const line=(t.split(/\n/).map(s=>s.trim()).filter(s=>s.length>2)[0]||''); return {value:line, conf:line?0.5:0}; }
+async function aiRead(file, fid){ const spec=FEX[fid]; const res={quality:null, value:'', confidence:0, source:'', raw:''};
+  res.quality=await imgQuality(file);
+  if(!spec){ res.source='image quality'; return res; }
+  if(spec.type==='qr' && ('BarcodeDetector' in window)){
+    try{ const bmp=await createImageBitmap(file); const det=new BarcodeDetector({formats:['qr_code']}); const codes=await det.detect(bmp);
+      if(codes&&codes.length){ const rv=codes[0].rawValue||''; const m=rv.match(/[a-z0-9._-]+@[a-z]+/i);
+        res.value=m?m[0]:rv; res.confidence=0.98; res.source='QR decode (BarcodeDetector)'; return res; } }catch(_){}
+  }
+  try{ const {text,conf}=await ocr(file); res.raw=text; const ex=extractField(text, spec.type);
+    res.value=ex.value; res.confidence=ex.value?Math.max(conf, ex.conf):conf; res.source='OCR (Tesseract.js)'+(ex.value?' + pattern match':''); }
+  catch(e){ res.source='manual entry'; res.error=String(e&&e.message||e); }
+  return res; }
+function logAudit(fid,action,ex){ STATE.audit=STATE.audit||[]; STATE.audit.push({ t:Date.now(), facet:(META.facets[fid]&&META.facets[fid].label)||fid, action, field:(FEX[fid]&&FEX[fid].field)||null, value:ex&&ex.value, confidence:ex&&ex.confidence, source:ex&&ex.source }); }
+function applyExtraction(fid){ const ex=STATE.extracted[fid], spec=FEX[fid]; if(!ex||!spec) return;
+  STATE.external=STATE.external||{};
+  if(spec.field==='gstin' && ex.value){ STATE.external.gstin={status:'captured', gstin:ex.value}; }
+  if(spec.field==='upi_vpa' && ex.value){ STATE.external.vpa=ex.value; }
+  if(spec.field==='consumer_no' && ex.value){ STATE.external.consumerNo=ex.value; } }
+async function runAI(fid){ STATE.aiBusy[fid]=true; renderCapture();
+  let r; try{ r=await aiRead(STATE.captures[fid].fileRef, fid); }catch(e){ r={source:'manual entry', error:String(e)}; }
+  STATE.aiBusy[fid]=false;
+  STATE.extracted[fid]={ field:(FEX[fid]&&FEX[fid].field)||null, value:r.value||'', confidence:r.confidence||0, quality:r.quality, source:r.source||'—' };
+  logAudit(fid,'ai_extract', STATE.extracted[fid]); renderCapture(); }
+function extractionPanel(fid){ const cap=STATE.captures[fid]; if(!cap) return '';
+  const spec=FEX[fid], ex=STATE.extracted[fid], busy=STATE.aiBusy[fid];
+  let inner;
+  if(busy){ inner='<div class="toolbar"><span class="spin"></span><span class="note">Multimodal AI reading the photo…</span></div>'; }
+  else if(ex){
+    const q=ex.quality?'<span class="pill">image quality '+ex.quality.score+'/5</span>':'';
+    let fields = spec
+      ? '<div class="exfield" style="margin-top:6px"><label class="small dim">'+spec.label+' <span class="mono" style="font-size:11px">('+(ex.source||'AI')+' · '+Math.round((ex.confidence||0)*100)+'% conf)</span></label>'
+        +'<input id="exVal" value="'+esc(ex.value||'')+'" placeholder="not detected — enter manually" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;font-family:var(--mono);font-size:13px"/></div>'
+      : '<div class="small note" style="margin-top:6px">No structured field for this facet — held as an Observed photo (quality '+(ex.quality?ex.quality.score+'/5':'n/a')+').</div>';
+    inner='<div class="toolbar" style="margin:0">'+q+(ex.source?'<span class="pill">'+ex.source+'</span>':'')+'</div>'+fields
+      +(spec?'<div class="toolbar" style="margin-top:8px"><button class="btn sm" id="exAccept">Accept &amp; continue</button><button class="btn ghost sm" id="exRerun">Re-run AI</button></div>':'');
+  } else { inner='<button class="btn sm" id="exRun">✨ AI-read this photo</button><span class="small dim" style="margin-left:8px">quality · QR · OCR</span>'; }
+  return '<div class="card tight" style="margin-top:10px;border-color:color-mix(in srgb,var(--brand) 40%,transparent)">'
+    +'<div class="toolbar" style="margin:0 0 4px"><b style="font-size:13px">Multimodal AI extraction</b><span class="spacer"></span><span class="tag External" title="visual-extraction step g(·)">g(·)</span></div>'+inner
+    +'<p class="small dim" style="margin:8px 0 0">Human-in-the-loop: confirm or correct before it enters the evidence graph. Every read &amp; edit is logged.</p></div>';
+}
+
+function renderCapture(){
+  const root=$('#captureRoot'); if(!root) return;
+  const s=META.sectors.find(x=>x.id===STATE.sector);
+  const pack=(META.capture[STATE.sector]||[]); const N=pack.length;
+  const {resolved,total,iri}=capIri(); const capturedCount=Object.keys(STATE.captures).length;
+  const gstOk=STATE.extracted.gst_board&&STATE.extracted.gst_board.value;
+
+  const header='<div class="toolbar"><h1 style="margin:0;font-size:26px">Guided capture</h1><span class="spacer"></span>'
+    +'<select class="select" id="capSector">'+META.sectors.map(x=>'<option value="'+x.id+'"'+(x.id===STATE.sector?' selected':'')+'>'+x.name+'</option>').join('')+'</select>'
+    +'<a class="btn ghost sm" href="#/assess">Assessment →</a></div>'
+    +'<p class="muted small" style="margin:2px 0">Profile <b>'+s.name+'</b> · one photo at a time · '+capturedCount+'/'+N+' captured · '+resolved.size+'/'+total+' domains · IRI '+iri.toFixed(2)+(gstOk?' · GSTIN '+gstOk:'')+'</p>'
+    +filmstrip(pack);
+
+  if(STATE.capStep>=N){
+    const shots=pack.filter(fid=>STATE.captures[fid]).map(fid=>{ const ex=STATE.extracted[fid];
+      return '<div class="card tight" style="padding:8px"><img src="'+STATE.captures[fid].url+'" style="width:100%;height:90px;object-fit:cover;border-radius:6px"/><div class="small" style="margin-top:4px">'+META.facets[fid].label+'</div>'+(ex&&ex.value?'<div class="mono small hl">'+esc(ex.value)+'</div>':'')+'</div>'; }).join('');
+    const auditRows=(STATE.audit||[]).slice(-20).reverse().map(a=>'<tr><td class="small">'+a.facet+'</td><td class="small">'+a.action+'</td><td class="small mono">'+esc(a.value||'—')+'</td><td class="num small">'+(a.confidence!=null?Math.round(a.confidence*100)+'%':'—')+'</td><td class="small dim">'+esc(a.source||'')+'</td></tr>').join('');
+    const cases=listCases(); const caseOpts=Object.keys(cases).map(n=>'<option value="'+esc(n)+'">'+esc(n)+' ('+new Date(cases[n].at).toLocaleDateString()+')</option>').join('');
+    root.innerHTML='<section>'+header
+      +'<div class="card" style="margin:14px 0"><div class="toolbar"><h2 style="margin:0">Capture complete</h2><span class="spacer"></span><span class="tag Derived">IRI '+iri.toFixed(2)+'</span></div>'
+      +'<p class="note">'+capturedCount+' of '+N+' facets captured · '+resolved.size+'/'+total+' verification domains resolved. Extracted fields feed the evidence graph &amp; validations in the Assessment.</p>'
+      +'<div class="grid cols-4" style="margin-top:10px">'+(shots||'<p class="note">No photos captured — start over to take them.</p>')+'</div></div>'
+      +'<div class="grid cols-2">'
+      +'<div class="card"><h2>Extraction audit log</h2><p class="note">Every AI read and human override is recorded (RBI DLG explainability · EU AI Act accountability).</p>'
+      +(auditRows?'<table><thead><tr><th>Facet</th><th>Action</th><th>Value</th><th class="num">Conf.</th><th>Source</th></tr></thead><tbody>'+auditRows+'</tbody></table>':'<p class="note">No AI extractions yet.</p>')+'</div>'
+      +'<div><div class="card" style="margin-bottom:16px"><h2>AI extraction — model card</h2>'
+      +'<p class="note small">In-browser multimodal read: image-quality heuristic (Laplacian sharpness), QR/UPI decode (BarcodeDetector), and OCR (Tesseract.js) with per-facet pattern extraction. Confidence is reported; a human confirms every value; nothing is uploaded. Heavier semantic vision (counts, condition) runs a server VLM in production — the same g(·) interface.</p>'
+      +'<div class="disclaimer" style="margin-top:8px">Outputs are illustrative and human-supervised — not a validated credit-scoring model. Consented data pulls (AA/GST/utility) follow DPDP 2023, RBI DLG 2025 and the AA Master Direction.</div></div>'
+      +'<div class="card"><h2>Case</h2><div class="toolbar"><input id="caseName" placeholder="case name (e.g. Sharma Kirana)" style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;font-size:13px"/><button class="btn sm" id="caseSave">Save</button></div>'
+      +(caseOpts?'<div class="toolbar" style="margin-top:8px"><select class="select" id="caseSel" style="flex:1">'+caseOpts+'</select><button class="btn ghost sm" id="caseLoad">Reopen</button></div>':'<p class="small dim" style="margin-top:6px">Saved cases persist on this device.</p>')
+      +'<div class="toolbar" style="margin-top:12px"><a class="btn" href="#/assess">Review in Assessment →</a><button class="btn ghost" id="capReview">Review shots</button><button class="btn ghost" id="capRestart">New</button></div></div></div>'
+      +'</div></section>';
+    wireCapture(); return;
+  }
+
+  const fid=pack[STATE.capStep], f=META.facets[fid], cap=STATE.captures[fid];
+  const big = cap
+    ? '<img src="'+cap.url+'" style="width:100%;max-height:360px;object-fit:cover;border-radius:12px;border:1px solid var(--line)"/>'
+    : '<div style="min-height:300px;border:2px dashed var(--line);border-radius:12px;display:grid;place-items:center;text-align:center;color:var(--dim)"><div><div style="font-size:44px">📷</div><div style="margin-top:6px">Point the camera at the<br/><b style="color:var(--ink)">'+f.label.toLowerCase()+'</b></div></div></div>';
+
+  root.innerHTML='<section>'+header
+    +'<div class="card" style="margin:14px 0">'
+    +'<div class="toolbar" style="margin-bottom:4px"><span class="pill">Photo '+(STATE.capStep+1)+' of '+N+'</span><span class="pill">'+f.cat+'</span><span class="tag '+f.node+'">'+f.node+'</span><span class="spacer"></span>'+domainChips(f.domains)+'</div>'
+    +'<h1 style="margin:.1em 0;font-size:28px">'+f.label+'</h1>'
+    +'<div class="grid cols-2" style="margin-top:8px">'
+    +'<div>'+big+(cap?'<p class="small dim" style="margin-top:6px">✓ captured — retake or continue.</p>':'')+'</div>'
+    +'<div>'
+    +'<div class="callout"><b>What to capture &amp; why:</b> '+f.validates+'</div>'
+    +'<div class="callout" style="margin-top:8px"><b>Data backing:</b> '+f.data+(f.key?' · <b>key:</b> '+f.key:'')+'</div>'
+    +'<div class="callout" style="margin-top:8px"><b>Feeds the analysis:</b> '+f.output+'</div>'
+    +(f.privacy&&f.privacy!=='—'?'<div class="disclaimer" style="margin-top:10px">🔒 '+f.privacy+'</div>':'')
+    + extractionPanel(fid)
+    +'</div></div>'
+    +'<div class="toolbar" style="margin-top:16px">'
+    +(STATE.capStep>0?'<button class="btn ghost" id="capBack">← Back</button>':'')
+    +'<label class="btn" style="cursor:pointer">'+(cap?'📷 Retake photo':'📷 Take / upload photo')+'<input type="file" accept="image/*" capture="environment" id="capInput" style="display:none"/></label>'
+    +(cap?'<button class="btn" id="capNext">Next →</button>':'<button class="btn ghost" id="capSkip">Skip — not applicable</button>')
+    +'<span class="spacer"></span><button class="btn ghost sm" id="capFinish">Finish &amp; review</button>'
+    +'</div></div>'
+    +'</section>';
+  wireCapture();
+}
+function listCases(){ try{ return JSON.parse(localStorage.getItem('bx_cases')||'{}'); }catch(_){ return {}; } }
+function saveCase(name){ if(!name) return; try{ const all=listCases(); all[name]={ sector:STATE.sector, extracted:STATE.extracted, audit:STATE.audit, at:Date.now() }; localStorage.setItem('bx_cases', JSON.stringify(all)); }catch(_){} }
+function loadCase(name){ const c=listCases()[name]; if(!c) return; STATE=defaultState(c.sector); STATE.extracted=c.extracted||{}; STATE.audit=c.audit||[]; (Object.keys(STATE.extracted)).forEach(fid=>applyExtraction(fid)); STATE.capStep=(META.capture[STATE.sector]||[]).length; renderCapture(); }
+function wireCapture(){
+  const pack=(META.capture[STATE.sector]||[]);
+  const adv=()=>{ STATE.capStep=Math.min(pack.length, STATE.capStep+1); renderCapture(); };
+  $('#capSector') && ($('#capSector').onchange=(e)=>{ location.hash='#/capture?sector='+e.target.value; });
+  $('#capInput') && ($('#capInput').onchange=(e)=>{ const file=e.target.files&&e.target.files[0]; if(!file) return;
+    const fid=pack[STATE.capStep];
+    if(STATE.captures[fid]&&STATE.captures[fid].url){ try{URL.revokeObjectURL(STATE.captures[fid].url);}catch(_){} }
+    STATE.captures[fid]={ name:file.name, url:URL.createObjectURL(file), fileRef:file }; delete STATE.capSkipped[fid]; delete STATE.extracted[fid];
+    if(FEX[fid]){ runAI(fid); } else { runAI(fid); } });
+  $('#exRun') && ($('#exRun').onclick=()=>runAI(pack[STATE.capStep]));
+  $('#exRerun') && ($('#exRerun').onclick=()=>runAI(pack[STATE.capStep]));
+  $('#exAccept') && ($('#exAccept').onclick=()=>{ const fid=pack[STATE.capStep]; const ex=STATE.extracted[fid]; const v=($('#exVal')||{}).value;
+    if(ex){ if(v!=null && v!==ex.value){ ex.value=v; ex.source=(ex.source||'')+' + human override'; logAudit(fid,'human_override',ex); } applyExtraction(fid); } adv(); });
+  $('#capSkip') && ($('#capSkip').onclick=()=>{ STATE.capSkipped[pack[STATE.capStep]]=true; adv(); });
+  $('#capNext') && ($('#capNext').onclick=()=>{ const fid=pack[STATE.capStep]; if(STATE.extracted[fid]) applyExtraction(fid); adv(); });
+  $('#capBack') && ($('#capBack').onclick=()=>{ STATE.capStep=Math.max(0,STATE.capStep-1); renderCapture(); });
+  $('#capFinish') && ($('#capFinish').onclick=()=>{ STATE.capStep=pack.length; renderCapture(); });
+  $('#capReview') && ($('#capReview').onclick=()=>{ STATE.capStep=0; renderCapture(); });
+  $('#capRestart') && ($('#capRestart').onclick=()=>{ Object.keys(STATE.captures).forEach(fid=>{ try{URL.revokeObjectURL(STATE.captures[fid].url);}catch(_){} }); STATE=defaultState(STATE.sector); renderCapture(); });
+  $('#caseSave') && ($('#caseSave').onclick=()=>{ saveCase(($('#caseName')||{}).value); renderCapture(); });
+  $('#caseLoad') && ($('#caseLoad').onclick=()=>{ loadCase(($('#caseSel')||{}).value); });
+  $$('#captureRoot [data-jump]').forEach(el=>el.onclick=()=>{ STATE.capStep=+el.dataset.jump; renderCapture(); });
+}
+
+/* -------------------------------- router --------------------------------- */
+async function route(){
+  await loadMeta(); setNav();
+  const raw=(location.hash||'#/').slice(1);
+  const [path,q]=raw.split('?');
+  const view=$('#view');
+  let html='';
+  if(path==='/'||path===''){ html=viewHome(); }
+  else if(path==='/governance'){ html=viewGovernance(); }
+  else if(path==='/about'){ html=viewAbout(); }
+  else if(path==='/capture'){ html=viewCapture(q); }
+  else if(path==='/demos'){ view.innerHTML='<div class="wrap"><section><p class="muted">Computing demonstrations…</p></section></div>'; html=await viewDemos(); }
+  else if(path==='/assess'){ html=await viewAssess(q); }
+  else { html='<div class="wrap"><section><h1>Not found</h1><a href="#/">Home</a></section></div>'; }
+  if(path==='/assess'){ view.innerHTML=html; await viewAssess(q); }
+  else if(path==='/capture'){ view.innerHTML=html; renderCapture(); }
+  else view.innerHTML=html;
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',route);
+route();
+`;
+
+/* ============================== 8. ROUTER ================================ */
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const p = url.pathname;
+    try {
+      if (p === "/api/meta") return apiMeta();
+      if (p === "/api/estimate" && request.method === "POST") return apiEstimate(request);
+      if (p.startsWith("/api/demo/")) return apiDemo(p.split("/").pop());
+      if (p === "/healthz") return json({ ok:true, app:APP.name, engine:APP.engineVersion });
+      if (p === "/robots.txt") return new Response("User-agent: *\nAllow: /\n", { headers:{ "content-type":"text/plain" } });
+      // everything else → SPA shell
+      return new Response(shell(), { headers:{ "content-type":"text/html; charset=utf-8", "cache-control":"no-store" } });
+    } catch (e) {
+      return json({ error:String(e && e.message || e) }, 500);
+    }
+  },
+};
+
+// Named exports for offline unit testing (harmless in the Worker runtime).
+export { computeEstimate, revenueInterval, financials, rankEvidence, energyProxy, concordance, SECTORS, REGISTRY, DEMOS };

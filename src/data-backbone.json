@@ -1,0 +1,793 @@
+{
+  "note": "Business X-Ray Data Backbone — external source registry. All sources are SANDBOX (mock) and returned in REDACTED form until go-live. Consumed by the X-Ray Underwriting Agent via the Tool Router; contributes signals to the assessment and downstream underwriting profiles. Sensitive pulls (AA, bureau, KYC) are consent-gated. Each source is AVAILABLE only when the Mitra has captured the item(s) that carry its linkage key (see requires / keyItems); otherwise the Mitra is prompted to capture more.",
+  "profiles": {
+    "mitra": "Mitra Customer Profile",
+    "cpv": "CPV Residence PD",
+    "acm": "ACM Business PD",
+    "rcu": "RCU Property PD",
+    "bureau": "CRIF Bureau",
+    "sustain": "Sustainable Profile",
+    "banking": "Banking scorecard",
+    "postdib": "Post-disbursement monitoring"
+  },
+  "categories": [
+    {
+      "id": "kyc",
+      "label": "Identity & KYC",
+      "consent": "eKYC / OKYC consent"
+    },
+    {
+      "id": "income",
+      "label": "Income & tax",
+      "consent": "AA / taxpayer consent"
+    },
+    {
+      "id": "registry",
+      "label": "Business & registry",
+      "consent": "public / business registry"
+    },
+    {
+      "id": "behaviour",
+      "label": "Behaviour & repayment",
+      "consent": "bureau / AA consent"
+    },
+    {
+      "id": "collateral",
+      "label": "Collateral & land",
+      "consent": "property / registry"
+    },
+    {
+      "id": "compliance",
+      "label": "Compliance & schemes",
+      "consent": "screening"
+    },
+    {
+      "id": "monitoring",
+      "label": "Monitoring & collections",
+      "consent": "recurring consent"
+    },
+    {
+      "id": "digital",
+      "label": "Digital footprint",
+      "consent": "public / platform"
+    },
+    {
+      "id": "uli",
+      "label": "ULI (Unified Lending Interface)",
+      "consent": "RBIH ULI"
+    },
+    {
+      "id": "legal",
+      "label": "Legal & litigation",
+      "consent": "public records"
+    }
+  ],
+  "sources": [
+    {
+      "id": "aadhaar",
+      "cat": "kyc",
+      "name": "Aadhaar eKYC / OKYC",
+      "feeds": "Onboarding · KYC identity",
+      "cam": "§1 Applicant · §2 KYC/consent",
+      "monitors": "Re-KYC / periodic KYC refresh",
+      "golive": "UIDAI via ULI Auth Suite (consent-based)",
+      "confirms": [
+        "mitra",
+        "cpv"
+      ],
+      "consentGated": true,
+      "mock": "XXXX-XXXX-1234 · name/DOB/addr match ✓ (masked)",
+      "requires": [
+        "aadhaar_doc"
+      ]
+    },
+    {
+      "id": "pan",
+      "cat": "kyc",
+      "name": "PAN Verification",
+      "feeds": "Onboarding · KYC · GSTIN link",
+      "cam": "§1 Applicant · §2 KYC/consent",
+      "monitors": "Re-KYC / periodic KYC refresh",
+      "golive": "Protean / Income Tax via ULI",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": true,
+      "mock": "ABCDE1234F · active · name match ✓",
+      "requires": [
+        "pan_doc"
+      ]
+    },
+    {
+      "id": "dl",
+      "cat": "kyc",
+      "name": "Driving Licence",
+      "feeds": "Background check · identity",
+      "cam": "§1 Applicant · §2 KYC/consent",
+      "monitors": "Re-KYC / periodic KYC refresh",
+      "golive": "Sarathi / Parivahan (MoRTH)",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": true,
+      "mock": "MH0X…1234 · valid to 2031 (masked)",
+      "requires": [
+        "dl_doc"
+      ]
+    },
+    {
+      "id": "facematch",
+      "cat": "kyc",
+      "name": "Face Match / Liveness",
+      "feeds": "Background check · fraud",
+      "cam": "§1 Applicant · §2 KYC/consent",
+      "monitors": "Re-KYC / periodic KYC refresh",
+      "golive": "NPCI / licensed vendor",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": true,
+      "mock": "liveness pass · match 0.97 (no image stored)",
+      "requires": [
+        "face"
+      ]
+    },
+    {
+      "id": "dhruva",
+      "cat": "kyc",
+      "name": "DHRUVA Digital Address",
+      "feeds": "Background check · residence",
+      "cam": "§1 Applicant · §2 KYC/consent",
+      "monitors": "Re-KYC / periodic KYC refresh",
+      "golive": "DHRUVA (Dept. of Posts)",
+      "confirms": [
+        "mitra",
+        "sustain",
+        "cpv"
+      ],
+      "consentGated": true,
+      "mock": "digital address code · geolocated ✓ (masked)",
+      "requires": [
+        "aadhaar_doc"
+      ]
+    },
+    {
+      "id": "gst_returns",
+      "cat": "income",
+      "name": "GST Returns (GSTR-1, GSTR-3B)",
+      "feeds": "Eligibility · verified turnover",
+      "cam": "§6 Income & eligibility",
+      "monitors": "Turnover / income drift → EWS",
+      "golive": "GSP / GSTN",
+      "confirms": [
+        "mitra",
+        "sustain",
+        "acm",
+        "postdib"
+      ],
+      "consentGated": true,
+      "mock": "12-mo turnover band · filing regular ✓",
+      "requires": [
+        "gst_board"
+      ]
+    },
+    {
+      "id": "itr",
+      "cat": "income",
+      "name": "Income Tax Returns",
+      "feeds": "Eligibility · declared income",
+      "cam": "§6 Income & eligibility",
+      "monitors": "Turnover / income drift → EWS",
+      "golive": "Income Tax Dept (e-filing)",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": true,
+      "mock": "AY declared income band · ITR-verified",
+      "requires": [
+        "pan_doc"
+      ]
+    },
+    {
+      "id": "demat",
+      "cat": "income",
+      "name": "Equities / Demat Holdings",
+      "feeds": "Eligibility · assets/liquidity",
+      "cam": "§6 Income & eligibility",
+      "monitors": "Turnover / income drift → EWS",
+      "golive": "CDSL / NSDL via AA",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": true,
+      "mock": "holdings value band (masked)",
+      "requires": [
+        "qr_code"
+      ]
+    },
+    {
+      "id": "aa_bank",
+      "cat": "income",
+      "name": "AA Bank Statements",
+      "feeds": "Eligibility · verified cash-flow",
+      "cam": "§6 Income & eligibility",
+      "monitors": "Turnover / income drift → EWS",
+      "golive": "Account Aggregator (Sahamati / FIP) — consent-based",
+      "confirms": [
+        "mitra",
+        "sustain",
+        "banking",
+        "acm"
+      ],
+      "consentGated": true,
+      "mock": "avg monthly credits · inflow stability · bounce count",
+      "requires": [
+        "qr_code"
+      ]
+    },
+    {
+      "id": "aa_mf",
+      "cat": "income",
+      "name": "AA Mutual-Fund Holdings",
+      "feeds": "Eligibility · assets/liquidity",
+      "cam": "§6 Income & eligibility",
+      "monitors": "Turnover / income drift → EWS",
+      "golive": "Account Aggregator (RTA / CAMS-KFin via AA)",
+      "confirms": [
+        "mitra",
+        "cpv"
+      ],
+      "consentGated": true,
+      "mock": "folio value band (masked)",
+      "requires": [
+        "qr_code"
+      ]
+    },
+    {
+      "id": "aa_insurance",
+      "cat": "income",
+      "name": "AA Insurance Policies",
+      "feeds": "Eligibility · protection/obligation",
+      "cam": "§6 Income & eligibility",
+      "monitors": "Turnover / income drift → EWS",
+      "golive": "Account Aggregator (insurers via AA)",
+      "confirms": [
+        "mitra",
+        "sustain",
+        "cpv"
+      ],
+      "consentGated": true,
+      "mock": "in-force policies · premium outgo band",
+      "requires": [
+        "qr_code"
+      ]
+    },
+    {
+      "id": "aa_nps",
+      "cat": "income",
+      "name": "AA NPS / EPFO Passbook",
+      "feeds": "Eligibility · savings continuity",
+      "cam": "§6 Income & eligibility",
+      "monitors": "Turnover / income drift → EWS",
+      "golive": "Account Aggregator (NPS-CRA / EPFO via AA)",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": true,
+      "mock": "contribution continuity · balance band",
+      "requires": [
+        "qr_code"
+      ]
+    },
+    {
+      "id": "gstin_reg",
+      "cat": "registry",
+      "name": "GSTIN Registration",
+      "feeds": "Eligibility · KYC link",
+      "cam": "§1 Applicant · §4 Business",
+      "monitors": "Registration / vintage lapse watch",
+      "golive": "GSTN",
+      "confirms": [
+        "mitra",
+        "acm"
+      ],
+      "consentGated": false,
+      "mock": "GSTIN active · reg date · principal place ✓",
+      "requires": [
+        "gst_board"
+      ]
+    },
+    {
+      "id": "udyam",
+      "cat": "registry",
+      "name": "Udyam Registration",
+      "feeds": "Business stability · scheme",
+      "cam": "§1 Applicant · §4 Business",
+      "monitors": "Registration / vintage lapse watch",
+      "golive": "Udyam (MoMSME)",
+      "confirms": [
+        "mitra",
+        "acm"
+      ],
+      "consentGated": false,
+      "mock": "Udyam no. · Micro/Small · NIC code ✓",
+      "requires": [
+        "udyam"
+      ]
+    },
+    {
+      "id": "epfo_estab",
+      "cat": "registry",
+      "name": "EPFO Establishment",
+      "feeds": "Business stability · scale",
+      "cam": "§1 Applicant · §4 Business",
+      "monitors": "Registration / vintage lapse watch",
+      "golive": "EPFO",
+      "confirms": [
+        "mitra",
+        "acm"
+      ],
+      "consentGated": false,
+      "mock": "establishment active · employee count band",
+      "requires": [
+        "udyam"
+      ]
+    },
+    {
+      "id": "shop_estab",
+      "cat": "registry",
+      "name": "Shop & Establishment Act",
+      "feeds": "Background check · premises",
+      "cam": "§1 Applicant · §4 Business",
+      "monitors": "Registration / vintage lapse watch",
+      "golive": "State Labour Dept",
+      "confirms": [
+        "mitra",
+        "sustain",
+        "acm"
+      ],
+      "consentGated": false,
+      "mock": "S&E licence valid · premises registered ✓",
+      "requires": [
+        "licence"
+      ]
+    },
+    {
+      "id": "fssai",
+      "cat": "registry",
+      "name": "FSSAI Licence",
+      "feeds": "Business stability · compliance",
+      "cam": "§1 Applicant · §4 Business",
+      "monitors": "Registration / vintage lapse watch",
+      "golive": "FSSAI FoSCoS",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": false,
+      "mock": "FSSAI licence valid to 2027 ✓",
+      "requires": [
+        "licence"
+      ]
+    },
+    {
+      "id": "bureau",
+      "cat": "behaviour",
+      "name": "Credit Bureaus (CIBIL · Experian · CRIF · Equifax)",
+      "feeds": "Underwriting · repayment history",
+      "cam": "§2 Bureau · §3 PD · §6 FOIR",
+      "monitors": "Repayment / bounce → EWS & IRACP",
+      "golive": "TransUnion CIBIL / Experian / CRIF High Mark / Equifax",
+      "confirms": [
+        "bureau"
+      ],
+      "consentGated": true,
+      "mock": "score band · live obligations · DPD history",
+      "requires": [
+        "pan_doc"
+      ]
+    },
+    {
+      "id": "upi",
+      "cat": "behaviour",
+      "name": "UPI Transaction Patterns",
+      "feeds": "Eligibility · cash-flow",
+      "cam": "§2 Bureau · §3 PD · §6 FOIR",
+      "monitors": "Repayment / bounce → EWS & IRACP",
+      "golive": "NPCI / AA",
+      "confirms": [
+        "mitra",
+        "sustain",
+        "banking",
+        "acm"
+      ],
+      "consentGated": true,
+      "mock": "UPI velocity · inflow days/mo · counterparties",
+      "requires": [
+        "qr_code"
+      ]
+    },
+    {
+      "id": "telecom",
+      "cat": "behaviour",
+      "name": "Telecom Payment History",
+      "feeds": "Alt-data · conduct",
+      "cam": "§2 Bureau · §3 PD · §6 FOIR",
+      "monitors": "Repayment / bounce → EWS & IRACP",
+      "golive": "DoT / TSPs",
+      "confirms": [
+        "sustain"
+      ],
+      "consentGated": true,
+      "mock": "recharge/bill regularity band",
+      "requires": [
+        "aadhaar_doc"
+      ]
+    },
+    {
+      "id": "ulpin",
+      "cat": "collateral",
+      "name": "Bhu-Aadhaar / ULPIN",
+      "feeds": "Collateral · title",
+      "cam": "§7 Collateral & title",
+      "monitors": "Collateral revaluation / charge review",
+      "golive": "DoLR (Digital India Land Records)",
+      "confirms": [
+        "rcu"
+      ],
+      "consentGated": false,
+      "mock": "ULPIN · parcel · owner match (masked)",
+      "requires": [
+        "property_doc"
+      ]
+    },
+    {
+      "id": "prop_tax",
+      "cat": "collateral",
+      "name": "Property Tax Records",
+      "feeds": "Collateral · ownership",
+      "cam": "§7 Collateral & title",
+      "monitors": "Collateral revaluation / charge review",
+      "golive": "ULB / municipal",
+      "confirms": [
+        "mitra",
+        "cpv",
+        "rcu",
+        "acm"
+      ],
+      "consentGated": false,
+      "mock": "assessee · dues status · usage type",
+      "requires": [
+        "property_doc"
+      ]
+    },
+    {
+      "id": "cersai",
+      "cat": "collateral",
+      "name": "CERSAI Registry",
+      "feeds": "Collateral · existing charges",
+      "cam": "§7 Collateral & title",
+      "monitors": "Collateral revaluation / charge review",
+      "golive": "CERSAI",
+      "confirms": [
+        "rcu"
+      ],
+      "consentGated": false,
+      "mock": "existing charges: none/registered (masked)",
+      "requires": [
+        "property_doc"
+      ]
+    },
+    {
+      "id": "igr",
+      "cat": "collateral",
+      "name": "Stamp Duty / Registration (IGR)",
+      "feeds": "Collateral · title chain",
+      "cam": "§7 Collateral & title",
+      "monitors": "Collateral revaluation / charge review",
+      "golive": "State IGR / e-Registration (ULI e-Stamping)",
+      "confirms": [
+        "rcu"
+      ],
+      "consentGated": false,
+      "mock": "registered deed · title chain node (masked)",
+      "requires": [
+        "property_doc"
+      ]
+    },
+    {
+      "id": "uli_cgtmse",
+      "cat": "compliance",
+      "name": "ULI Credit Guarantee / Schemes",
+      "feeds": "Structuring · guarantee",
+      "cam": "§8 Recommendation",
+      "monitors": "Scheme / negative-list refresh",
+      "golive": "ULI / CGTMSE",
+      "confirms": [],
+      "consentGated": false,
+      "mock": "CGTMSE eligibility · cover % · scheme fit",
+      "requires": [
+        "udyam"
+      ]
+    },
+    {
+      "id": "neg_lists",
+      "cat": "compliance",
+      "name": "Negative Lists",
+      "feeds": "Background check · sanctions/PEP",
+      "cam": "§8 Recommendation",
+      "monitors": "Scheme / negative-list refresh",
+      "golive": "RBI / SEBI / MCA / UN / internal",
+      "confirms": [
+        "bureau"
+      ],
+      "consentGated": false,
+      "mock": "no adverse hit (screened)",
+      "requires": [
+        "pan_doc"
+      ]
+    },
+    {
+      "id": "crilc",
+      "cat": "compliance",
+      "name": "RBI Defaulter / CRILC & Wilful-Defaulter Lists",
+      "feeds": "Background check · large-exposure default",
+      "cam": "§8 Recommendation",
+      "monitors": "Scheme / negative-list refresh",
+      "golive": "RBI CRILC · TransUnion CIBIL Suit-filed / Wilful-defaulter",
+      "confirms": [
+        "bureau",
+        "postdib"
+      ],
+      "consentGated": false,
+      "mock": "no CRILC / wilful-defaulter hit",
+      "requires": [
+        "pan_doc"
+      ]
+    },
+    {
+      "id": "skiptrace",
+      "cat": "monitoring",
+      "name": "Skip-Tracing (collections)",
+      "feeds": "Collections · contactability",
+      "cam": "§8 (post-sanction)",
+      "monitors": "Collections contactability & recovery",
+      "golive": "Telco / bureau / vendor",
+      "confirms": [
+        "cpv",
+        "postdib"
+      ],
+      "consentGated": true,
+      "mock": "contactability score (post-sanction only)",
+      "requires": [
+        "aadhaar_doc"
+      ]
+    },
+    {
+      "id": "aa_ongoing",
+      "cat": "monitoring",
+      "name": "AA Ongoing Consent (cash-flow monitoring)",
+      "feeds": "Post-disbursement · cash-flow EWS",
+      "cam": "§8 (post-sanction)",
+      "monitors": "Collections contactability & recovery",
+      "golive": "Account Aggregator — recurring consent (up to 12m)",
+      "confirms": [
+        "postdib"
+      ],
+      "consentGated": true,
+      "mock": "recurring cash-flow feed · EWS trend",
+      "requires": [
+        "qr_code"
+      ]
+    },
+    {
+      "id": "bureau_refresh",
+      "cat": "monitoring",
+      "name": "Bureau Periodic Refresh",
+      "feeds": "Post-disbursement · repayment EWS",
+      "cam": "§8 (post-sanction)",
+      "monitors": "Collections contactability & recovery",
+      "golive": "CRIF / CIBIL / Experian / Equifax — portfolio monitoring",
+      "confirms": [
+        "postdib"
+      ],
+      "consentGated": true,
+      "mock": "score delta · new-obligation alert",
+      "requires": [
+        "pan_doc"
+      ]
+    },
+    {
+      "id": "ecom_ratings",
+      "cat": "digital",
+      "name": "E-commerce Ratings",
+      "feeds": "Business stability · demand",
+      "cam": "§4 Business assessment",
+      "monitors": "Demand / rating trend → EWS",
+      "golive": "ONDC / marketplaces",
+      "confirms": [
+        "mitra",
+        "acm"
+      ],
+      "consentGated": false,
+      "mock": "rating · order-volume band · trend",
+      "requires": [
+        "exterior"
+      ]
+    },
+    {
+      "id": "wa_api",
+      "cat": "digital",
+      "name": "WhatsApp Business API",
+      "feeds": "Background check · presence",
+      "cam": "§4 Business assessment",
+      "monitors": "Demand / rating trend → EWS",
+      "golive": "Meta (BSP)",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": false,
+      "mock": "verified business presence ✓",
+      "requires": [
+        "exterior"
+      ]
+    },
+    {
+      "id": "wa_analytics",
+      "cat": "digital",
+      "name": "WhatsApp Business Analytics",
+      "feeds": "Business stability · engagement",
+      "cam": "§4 Business assessment",
+      "monitors": "Demand / rating trend → EWS",
+      "golive": "Meta (BSP)",
+      "confirms": [
+        "mitra",
+        "acm"
+      ],
+      "consentGated": false,
+      "mock": "message volume · response-rate band",
+      "requires": [
+        "exterior"
+      ]
+    },
+    {
+      "id": "appstore",
+      "cat": "digital",
+      "name": "App Store Presence",
+      "feeds": "Business stability · digital maturity",
+      "cam": "§4 Business assessment",
+      "monitors": "Demand / rating trend → EWS",
+      "golive": "Play Store / App Store",
+      "confirms": [],
+      "consentGated": false,
+      "mock": "listed app · installs band (if any)",
+      "requires": [
+        "exterior"
+      ]
+    },
+    {
+      "id": "uli_translit",
+      "cat": "uli",
+      "name": "ULI Transliteration Services",
+      "feeds": "Record-linkage · name standardisation",
+      "cam": "§7 Collateral & title",
+      "monitors": "Land-record / valuation refresh",
+      "golive": "Unified Lending Interface (RBIH)",
+      "confirms": [
+        "mitra"
+      ],
+      "consentGated": false,
+      "mock": "name standardised across records ✓",
+      "requires": [
+        "exterior"
+      ]
+    },
+    {
+      "id": "uli_land",
+      "cat": "uli",
+      "name": "ULI Digitised Land Records",
+      "feeds": "Collateral · title",
+      "cam": "§7 Collateral & title",
+      "monitors": "Land-record / valuation refresh",
+      "golive": "Unified Lending Interface (RBIH)",
+      "confirms": [
+        "rcu"
+      ],
+      "consentGated": false,
+      "mock": "digitised RoR · owner/parcel (masked)",
+      "requires": [
+        "property_doc"
+      ]
+    },
+    {
+      "id": "uli_valuation",
+      "cat": "uli",
+      "name": "ULI Property Search / Valuation",
+      "feeds": "Collateral · LTV",
+      "cam": "§7 Collateral & title",
+      "monitors": "Land-record / valuation refresh",
+      "golive": "Unified Lending Interface (RBIH)",
+      "confirms": [
+        "rcu"
+      ],
+      "consentGated": false,
+      "mock": "indicative market value · LTV input",
+      "requires": [
+        "property_doc"
+      ]
+    },
+    {
+      "id": "ecourts",
+      "cat": "legal",
+      "name": "e-Courts Litigation Analytics",
+      "feeds": "Background check · legal risk",
+      "cam": "§1 Applicant · §7 Title",
+      "monitors": "Litigation / adverse-event watch",
+      "golive": "e-Courts / vendor",
+      "confirms": [
+        "bureau"
+      ],
+      "consentGated": false,
+      "mock": "no adverse case / pending matter (masked)",
+      "requires": [
+        "pan_doc"
+      ]
+    }
+  ],
+  "keyItems": [
+    {
+      "id": "exterior",
+      "label": "Exterior & signage (business name)",
+      "kind": "premises"
+    },
+    {
+      "id": "gst_board",
+      "label": "GST board / certificate",
+      "kind": "premises"
+    },
+    {
+      "id": "qr_code",
+      "label": "UPI / merchant QR (bank linkage)",
+      "kind": "premises"
+    },
+    {
+      "id": "utility_meter",
+      "label": "Utility meter + consumer no.",
+      "kind": "premises"
+    },
+    {
+      "id": "udyam",
+      "label": "Udyam certificate",
+      "kind": "premises"
+    },
+    {
+      "id": "licence",
+      "label": "Trade / FSSAI / factory licence",
+      "kind": "premises"
+    },
+    {
+      "id": "aadhaar_doc",
+      "label": "Aadhaar (customer KYC)",
+      "kind": "kyc"
+    },
+    {
+      "id": "pan_doc",
+      "label": "PAN (customer / entity)",
+      "kind": "kyc"
+    },
+    {
+      "id": "dl_doc",
+      "label": "Driving licence",
+      "kind": "kyc"
+    },
+    {
+      "id": "face",
+      "label": "Customer selfie / liveness",
+      "kind": "kyc"
+    },
+    {
+      "id": "property_doc",
+      "label": "Property papers (collateral)",
+      "kind": "property"
+    }
+  ]
+}
