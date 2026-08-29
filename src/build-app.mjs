@@ -122,6 +122,7 @@ for (const o of kb.industries){
     assetNote: _clip(String(o.balanceSheetNotes||"").split(";")[0], 92),
     seasonal: /season|festi|wedding|harvest|monsoon|peak/i.test(vn),
     corroborators: (o.dataPack||[]).filter(x=>/strong/i.test(x.strength||"")).slice(0,3).map(x=>x.source),
+    benchmark: o.benchmark||null,
   };
 }
 
@@ -543,7 +544,9 @@ function xrayStatement(result,sector){
   var photos=(result.quality&&result.quality.shotsProvided)||0;
   var extSig=(S.bankSig?1:0)+(S.gst?1:0)+(S.energy?1:0);
   var rb=result.reviewBand||{};
-  var stmt='<table><thead><tr><th>Monthly line</th><th class="num">Cons.</th><th class="num">Base</th><th class="num">Optim.</th><th>Confidence</th><th>Basis</th></tr></thead><tbody>'
+  var bm=xe.benchmark||{status:'fixture',effectivePeriod:'2026-Q3',owner:'Credit analytics'};
+  var provChip='<span class="xchip" title="Benchmark registry: '+(bm.owner||'')+' · drift '+(bm.driftThreshold||'')+' · not yet independently validated">benchmark: '+(bm.status||'fixture')+' · '+(bm.effectivePeriod||'')+'</span>';
+  var stmt='<table><thead><tr><th>Monthly line</th><th class="num">Cons.</th><th class="num">Base</th><th class="num">Optim.</th><th>Evidence strength</th><th>Basis</th></tr></thead><tbody>'
     +_xrow('total','Total sales',mSales,cSales,S.priceObs||S.volObs?'photo-reconstructed':'sector prior')
     +_xrow('sub','· banked (digital)',mBank,cCash,S.bankSig?'AA / UPI':'modelled')
     +_xrow('sub','· cash (residual)',mCash,cCash,'surfaced, not hidden')
@@ -559,19 +562,19 @@ function xrayStatement(result,sector){
   var dimRows=dims.map(function(d){ return '<tr class="xdim"><td class="dn">'+d[0]+'</td><td class="dv">'+d[1]+'</td><td>'+_cf(d[2])+'</td><td class="small dim">'+d[3]+'</td></tr>'; }).join('');
   return '<div class="card xstmt" style="margin-bottom:16px">'
     +'<div class="xhead"><h2>Business X-Ray — reconstructed monthly cash-flow</h2><span class="tag Derived">reconstructed</span>'
-    +'<span class="spacer"></span><span class="xchip">Overall confidence '+overall+'%</span></div>'
-    +'<p class="note" style="margin:2px 0 8px">A bottom-up cash-flow rebuilt from the premises evidence and external signals — not a form summary. Every line carries a confidence score; a human underwriter makes the decision.</p>'
-    +'<div class="xmeta"><span class="xchip">Reconstructed from '+photos+' photo(s)</span><span class="xchip">'+extSig+' external signal(s)</span><span class="xchip">interval ±'+pct(result.turnover.relWidth/2)+'</span></div>'
+    +'<span class="spacer"></span><span class="xchip">Evidence strength '+overall+'%</span></div>'
+    +'<p class="note" style="margin:2px 0 8px">A bottom-up cash-flow rebuilt from the premises evidence and external signals — not a form summary. Every line carries an <b>evidence-strength</b> score (how well the line is corroborated), and a human underwriter makes the decision.</p>'
+    +'<div class="xmeta"><span class="xchip">Reconstructed from '+photos+' photo(s)</span><span class="xchip">'+extSig+' external signal(s)</span><span class="xchip">interval ±'+pct(result.turnover.relWidth/2)+'</span>'+provChip+'</div>'
     +stmt
     +'<div class="grid cols-3" style="margin-top:12px">'
     +'<div class="kpi xkpi"><span class="k">Net monthly surplus</span><span class="v" style="font-size:20px">'+fmtCr(mNet.base)+'</span><span class="small dim">repayment source</span></div>'
     +'<div class="kpi xkpi"><span class="k">Indicative serviceable EMI</span><span class="v" style="font-size:20px">'+fmtCr(Math.max(0,mNet.base*0.5))+'</span><span class="small dim">~50% of net surplus</span></div>'
     +'<div class="kpi xkpi"><span class="k">Indicative review exposure</span><span class="v" style="font-size:20px">'+fmtCr(rb.base||0)+'</span><span class="small dim">policy overlay</span></div>'
     +'</div>'
-    +'<h3 style="margin:16px 0 4px">Thirteen reconstructed dimensions <span class="tag Derived">confidence-scored</span></h3>'
+    +'<h3 style="margin:16px 0 4px">Thirteen reconstructed dimensions <span class="tag Derived">evidence-scored</span></h3>'
     +'<p class="note" style="margin:2px 0 8px">The analytical building blocks behind the statement above. Each is reconstructed from evidence, not asked on a form.</p>'
-    +'<table><thead><tr><th>Dimension</th><th>Reconstructed value</th><th>Confidence</th><th>Basis / evidence</th></tr></thead><tbody>'+dimRows+'</tbody></table>'
-    +'<p class="disclaimer" style="margin-top:12px">Illustrative rule-engine reconstruction. Modelled lines (drawings, existing debt, linkages) are flagged for verification via Account Aggregator, bureau and PAN/GST graph before any credit decision. The X-Ray reconstructs and recommends; a human underwriter decides.</p>'
+    +'<table><thead><tr><th>Dimension</th><th>Reconstructed value</th><th>Evidence strength</th><th>Basis / evidence</th></tr></thead><tbody>'+dimRows+'</tbody></table>'
+    +'<p class="disclaimer" style="margin-top:12px">Illustrative rule-engine reconstruction. <b>Evidence-strength scores indicate how well each line is corroborated — they are not calibrated confidence or coverage probabilities.</b> Conservative/base/optimistic are scenario bounds, not statistical intervals, until the prospective validation study reports. Modelled lines (drawings, existing debt, linkages) are operating context flagged for verification via Account Aggregator, bureau and PAN/GST graph before any credit decision. Benchmarks are versioned fixtures pending independent challenge. The X-Ray reconstructs and recommends; a human underwriter decides.</p>'
     +'</div>';
 }
 `;

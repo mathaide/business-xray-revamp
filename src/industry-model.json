@@ -1,8 +1,8 @@
 {
  "meta": {
   "name": "Business X-Ray — 56-Industry Imputation Knowledge Base",
-  "version": "1.0.0",
-  "generated": "2026-08-08",
+  "version": "1.1.0",
+  "generated": "2026-08-29",
   "engineTarget": "worker.js 2.1.0 (SECTORS/REGISTRY/FACETS/rankEvidence)",
   "industryCount": 56,
   "archetypes": [
@@ -140,7 +140,10 @@
    "metro",
    "nonmetro"
   ],
-  "varianceTarget": "turnover half-width (hi-lo)/2 ≤ 0.20 × base"
+  "varianceTarget": "turnover half-width (hi-lo)/2 ≤ 0.20 × base",
+  "changelog": [
+   "1.1.0: FMCG distributor & cold-storage aligned to paper anchors; per-profile benchmark provenance added (fixture status)."
+  ]
  },
  "newFacets": [
   {
@@ -635,7 +638,16 @@
      "output": "dated event count, plates and per-plate rate → turns & cover",
      "privacy": "mask client names, phone numbers and venue addresses"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "restaurant",
@@ -895,7 +907,16 @@
      "output": "weekly orders, AOV, commission → banked off-premise turnover",
      "privacy": "mask customer names/addresses; capture aggregate tiles only"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "tea_stall",
@@ -1129,7 +1150,16 @@
      "output": "price list → cover [lo,base,hi]",
      "privacy": "capture board only, no persons"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "tiffin",
@@ -1386,7 +1416,16 @@
      "output": "plan rate ÷ meals → cover [lo,base,hi]",
      "privacy": "capture rate card only, no persons"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "agri_processing",
@@ -1671,7 +1710,16 @@
      "output": "hours and util corroboration",
      "privacy": "mask wage/name columns"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "carpentry",
@@ -1932,7 +1980,16 @@
     ]
    },
    "varianceNotes": "Cash-heavy and often unregistered → pack concordance weak; expect ±30–35% photo-only, tightening to ≈15–18% once order pad, headcount and invoice sample close utilisation, uph and price.",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "engineering_works",
@@ -2212,7 +2269,16 @@
      "output": "WIP balance-sheet line + utilisation cross-check",
      "privacy": "mask any customer job tags carrying PII"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "fabrication_welding",
@@ -2472,7 +2538,16 @@
     ]
    },
    "varianceNotes": "Power bill + e-way + GST triangulate tightly (welding is energy-heavy) → ≤10–12%; photo-only ≈ ±30% until order book, plant count and kWh close utilisation, uph and hours.",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "flour_rice_mill",
@@ -2757,7 +2832,16 @@
      "output": "hours corroboration",
      "privacy": "mask wage/name columns"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "food_processing_snacks",
@@ -3035,7 +3119,16 @@
      "output": "hours and util corroboration",
      "privacy": "mask worker names/wages"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "furniture_manufacturing",
@@ -3304,7 +3397,16 @@
      "output": "FG DIO + retail activity signal",
      "privacy": "no customers or faces in frame"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "garment_manufacturing_jobwork",
@@ -3574,7 +3676,16 @@
      "output": "hours, util and uph corroboration",
      "privacy": "mask worker names/wages; no faces"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "plastic_packaging",
@@ -3851,7 +3962,16 @@
      "output": "hours and util corroboration",
      "privacy": "mask worker names/wages"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "spinning_weaving",
@@ -4135,7 +4255,16 @@
      "output": "hours and util corroboration",
      "privacy": "mask worker names/wages"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "auto_spare_parts",
@@ -4361,7 +4490,16 @@
    "varianceNotes": "GST + bank concordance → ≤12%; UPI alone understates due to credit trade; ±25% photo-only until bill-sequence + garage ledger + bin worksheet close txns/dso/dio",
    "newFacets": [
     "credit_ledger"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "footwear_store",
@@ -4570,7 +4708,16 @@
    "varianceNotes": "UPI+GST concordance → ≤10% on a normal month; ±25–30% photo-only until POS day-total + box price + stock worksheet close txns/ticket/dio; sale months need a discount-adjusted peak multiplier",
    "newFacets": [
     "footfall_timed"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "garment_store",
@@ -4779,7 +4926,16 @@
    "varianceNotes": "UPI+GST concordance → ≤10% on a normal month; ±25–30% photo-only until POS day-total + tag sample close txns/ticket; festival months need a separate peak multiplier, not a scaled base",
    "newFacets": [
     "footfall_timed"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "hardware_paint_sanitary",
@@ -5005,7 +5161,16 @@
    "varianceNotes": "GST + e-way + bank concordance → ≤12%; UPI alone understates (credit trade); ±25% photo-only until bill-sequence + contractor ledger + godown worksheet close txns/dso/dio",
    "newFacets": [
     "credit_ledger"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "jewellery",
@@ -5232,7 +5397,16 @@
    "newFacets": [
     "assay_kit",
     "safe_vault"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "kirana",
@@ -5452,7 +5626,16 @@
      "output": "rent opex line + deposit (BS asset)",
      "privacy": "mask landlord PAN/Aadhaar & bank details on the deed"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "mobile_electronics",
@@ -5666,7 +5849,16 @@
    "varianceNotes": "UPI+card+EMI+GST concordance → ≤10%; photo-only ≈ ±30% because low-txn high-ticket means small count errors swing turnover; EMI register + stock worksheet close the txns/dio gap",
    "newFacets": [
     "footfall_timed"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "nursery_floriculture",
@@ -5903,7 +6095,16 @@
      "output": "rent opex line + deposit (BS asset); or land fixed-asset note if owned",
      "privacy": "mask lessor PAN/Aadhaar & bank details on the deed"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "pan_shop",
@@ -6120,7 +6321,16 @@
      "output": "rent opex line + deposit (BS asset)",
      "privacy": "mask landlord PAN/Aadhaar & bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "pharmacy",
@@ -6364,7 +6574,16 @@
      "output": "rent opex line + deposit (BS asset)",
      "privacy": "mask landlord PAN/Aadhaar & bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "retail_store",
@@ -6584,7 +6803,16 @@
      "output": "rent opex line + deposit (BS asset)",
      "privacy": "mask landlord PAN/Aadhaar & bank details on the deed"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "stationery_photocopy",
@@ -6815,7 +7043,16 @@
      "output": "rent opex line + deposit (BS asset)",
      "privacy": "mask landlord PAN/Aadhaar & bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "vegetable_shop",
@@ -7033,7 +7270,16 @@
      "output": "rent opex line + deposit (BS asset)",
      "privacy": "mask landlord PAN/Aadhaar & bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "scrap_dealer",
@@ -7242,7 +7488,16 @@
     ]
    },
    "varianceNotes": "weighing slips + onward invoices + bank → ≤15% (cash buy-side keeps a residual gap); photo-only ≈ ±30–35% until weighbridge/kanta slips close the tonnage spread",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "architect",
@@ -7470,7 +7725,16 @@
     "engagement_letter",
     "fee_schedule",
     "receivables_ageing"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "beauty_salon",
@@ -7689,7 +7953,16 @@
      "output": "clients driver",
      "privacy": "mask client names/phone numbers"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "ca_cs",
@@ -7910,7 +8183,16 @@
     "engagement_letter",
     "fee_schedule",
     "receivables_ageing"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "coaching_institute",
@@ -8134,7 +8416,16 @@
      "output": "clients driver upper bound",
      "privacy": "no student faces; frame empty seating/room"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "consultancy",
@@ -8355,7 +8646,16 @@
     "engagement_letter",
     "fee_schedule",
     "receivables_ageing"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "diagnostic_lab",
@@ -8599,7 +8899,16 @@
      "output": "fee driver support",
      "privacy": "none — certificate on wall"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "event_management",
@@ -8829,7 +9138,16 @@
      "output": "occupancy, BS deposit asset",
      "privacy": "mask landlord PAN/bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "fitness_center",
@@ -9041,7 +9359,16 @@
      "output": "clients driver",
      "privacy": "mask member PII; capture counts/dates only"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "generic_g2_professional",
@@ -9265,7 +9592,16 @@
      "output": "occupancy, BS deposit asset",
      "privacy": "mask landlord PAN/bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "generic_g3_nonprofessional",
@@ -9476,7 +9812,16 @@
      "output": "occupancy, BS deposit asset",
      "privacy": "mask landlord PAN/bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "insurance_agency",
@@ -9704,7 +10049,16 @@
     "commission_statement",
     "fee_schedule",
     "renewal_register"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "interior_designer",
@@ -9926,7 +10280,16 @@
     "project_wip",
     "engagement_letter",
     "fee_schedule"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "mobile_appliance_repair",
@@ -10139,7 +10502,16 @@
      "output": "clients driver upper bound",
      "privacy": "blur customer devices/IDs on counter"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "real_estate_agency",
@@ -10361,7 +10733,16 @@
     "deal_register",
     "commission_statement",
     "fee_schedule"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "reg_medical",
@@ -10587,7 +10968,16 @@
    "newFacets": [
     "appointment_register",
     "fee_schedule"
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "tailoring",
@@ -10816,7 +11206,16 @@
      "output": "occupancy, BS deposit asset",
      "privacy": "mask landlord PAN/bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "tour_travel",
@@ -11040,7 +11439,16 @@
      "output": "occupancy, BS deposit asset",
      "privacy": "mask landlord PAN/bank details"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "tuition",
@@ -11257,7 +11665,16 @@
      "output": "clients driver upper bound",
      "privacy": "none — schedule board only"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "vehicle_service",
@@ -11482,7 +11899,16 @@
      "output": "balance-sheet inventory",
      "privacy": "none — stock only"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "cab_taxi",
@@ -11755,7 +12181,16 @@
      "output": "litres and ₹ fuel spend per period, FASTag toll crossings; derived km and idle share",
      "privacy": "redact card/account numbers on fuel receipts and FASTag statements"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "commercial_vehicles",
@@ -12008,7 +12443,16 @@
     ]
    },
    "varianceNotes": "FASTag + RC count + contract/GSTR-1 → ≤12–15%; photo-only ≈ ±30–35% until trip sheet and FASTag/odometer close the trips and utilisation gaps (idle vehicles are the key uncertainty).",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "courier_lastmile",
@@ -12267,7 +12711,16 @@
     ]
    },
    "varianceNotes": "Hub scan manifest + rate card + rider roster → ≤10–12%; photo-only ≈ ±30% until parcels/rider/day and active-rider count are pinned (thin margin makes rate accuracy matter most).",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "goods_transport",
@@ -12520,7 +12973,16 @@
     ]
    },
    "varianceNotes": "FASTag + e-way/GSTR-1 + RC count → ≤12–15%; photo-only ≈ ±30–35% until trip register and FASTag log close the loads/day and utilisation gaps (empty-return is the biggest uncertainty).",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "cold_storage",
@@ -12536,9 +12998,9 @@
       0.68
      ],
      "opex": [
-      0.25,
-      0.35,
-      0.45
+      0.24,
+      0.34,
+      0.44
      ],
      "dio": 0,
      "dso": 32,
@@ -12552,9 +13014,9 @@
       0.7
      ],
      "opex": [
-      0.24,
-      0.34,
-      0.44
+      0.23,
+      0.33,
+      0.43
      ],
      "dio": 0,
      "dso": 30,
@@ -12569,9 +13031,9 @@
       "label": "Effective rent yield / sq ft / day (net of vacancy)",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 0.8,
-      "base": 1.3,
-      "hi": 2
+      "lo": 1.2,
+      "base": 1.5,
+      "hi": 1.85
      },
      {
       "key": "area",
@@ -12598,9 +13060,9 @@
       "label": "Effective rent yield / sq ft / day (net of vacancy)",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 0.5,
-      "base": 0.9,
-      "hi": 1.4
+      "lo": 0.8,
+      "base": 1.05,
+      "hi": 1.3
      },
      {
       "key": "area",
@@ -12744,7 +13206,16 @@
      "output": "confirms refrigerated capacity is live and its class → supports psf/area and power-intensity",
      "privacy": "do not capture depositor goods labels"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "fmcg_distributor",
@@ -12755,9 +13226,9 @@
    "registry": {
     "metro": {
      "gm": [
-      0.04,
-      0.055,
-      0.07
+      0.05,
+      0.07,
+      0.09
      ],
      "opex": [
       0.025,
@@ -12771,9 +13242,9 @@
     },
     "nonmetro": {
      "gm": [
-      0.045,
-      0.06,
-      0.08
+      0.05,
+      0.07,
+      0.09
      ],
      "opex": [
       0.022,
@@ -12793,9 +13264,9 @@
       "label": "Dispatch value / sq ft / day",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 25,
-      "base": 40,
-      "hi": 60
+      "lo": 27,
+      "base": 33,
+      "hi": 41
      },
      {
       "key": "area",
@@ -12822,9 +13293,9 @@
       "label": "Dispatch value / sq ft / day",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 18,
-      "base": 30,
-      "hi": 45
+      "lo": 20,
+      "base": 25,
+      "hi": 31
      },
      {
       "key": "area",
@@ -12952,12 +13423,12 @@
    "balanceSheetNotes": "inventory fast (DIO ~15d) = measured stock worksheet; receivables = retailer credit (DSO ~12d, mostly cash/UPI at drop); payables = company credit (DPO ~14d) → tight trade cycle, modest WC; fixed assets = delivery vans/tempo (financeable), racking, DMS handhelds",
    "monthlyRevenueBand": {
     "metro": [
-     2500000,
-     9000000
+     2200000,
+     7500000
     ],
     "nonmetro": [
-     1200000,
-     5000000
+     1100000,
+     4500000
     ]
    },
    "varianceNotes": "DMS + e-way + GST + bank concordance → ≤10%; photo-only ≈ ±25% until beat/van sheet and primary invoices close the psf gap",
@@ -12968,7 +13439,16 @@
      "output": "caps daily beat reach → bounds secondary-sales throughput; financeable fixed asset",
      "privacy": "blur number plates"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "godown_owner",
@@ -13186,7 +13666,16 @@
      "output": "contracted rent/sqft → revenue; deposit → BS liability; tenure → cash-flow stability",
      "privacy": "mask tenant PAN/GSTIN and signatures"
     }
-   ]
+   ],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "trader",
@@ -13392,7 +13881,16 @@
     ]
    },
    "varianceNotes": "GST + e-way + bank concordance → ≤12%; photo-only ≈ ±25–30% until dispatch register + area measure close the psf/area gap",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   },
   {
    "id": "wholesale_cf",
@@ -13609,7 +14107,16 @@
     ]
    },
    "varianceNotes": "commission statement + e-way + GST concordance → ≤10%; photo-only ≈ ±25% until dispatch register and principal statement close the psf gap",
-   "newFacets": []
+   "newFacets": [],
+   "benchmark": {
+    "status": "fixture",
+    "source": "internal expert-set benchmark",
+    "geography": "IN · metro & non-metro bands",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% revenue · ±3pp margin",
+    "signedOff": false
+   }
   }
  ]
 }

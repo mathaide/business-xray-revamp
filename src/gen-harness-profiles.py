@@ -84,7 +84,7 @@ for n, x in enumerate(inds, start=1):
 
     # EBITDA margin ~ gross margin minus opex ratio (operating margin proxy), clamped
     gm = float(reg["gm"][1]); opex = float(reg["opex"][1])
-    ebm = max(0.04, min(gm, gm - opex))
+    ebm = max(0.025, min(gm, gm - opex))
     ebitda = base * ebm
     # working-capital requirement via cash-conversion cycle
     ccc = max(5, float(reg.get("dio",0)) + float(reg.get("dso",0)) - float(reg.get("dpo",0)))
