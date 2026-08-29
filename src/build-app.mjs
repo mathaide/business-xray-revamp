@@ -105,6 +105,26 @@ for (const o of kb.industries) {
     key:"", data:facetShoot(fid), validates:facetVal(fid), output:"", privacy:PRIV.has(fid)?"Crop faces & number plates":"—" }; }
 }
 
+/* ---------- per-profile X-Ray extras: soft-dimension hooks parsed from the model ---------- */
+const _clip = (s,n)=>{ s=String(s||"").replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; };
+const XRAY_EXTRAS = {};
+for (const o of kb.industries){
+  const occ = o.occupancy||{};
+  const bsn = String(o.balanceSheetNotes||"").toLowerCase();
+  const vn  = String(o.varianceNotes||"")+" "+String(o.economics||"");
+  const b2b = String((o.activitySignals||{}).b2b||"");
+  XRAY_EXTRAS[o.id] = {
+    rent: occ.typicalRentMonthly||null,
+    depositMonths: occ.depositMonths||null,
+    assetFinance: /emi|vehicle[ -]?loan|term loan|machinery loan|hypothec|equipment loan|cc limit|od limit|working[ -]?capital loan/.test(bsn),
+    b2b: (b2b && !/^n\/?a/i.test(b2b)) ? "b2b" : "b2c",
+    b2bNote: _clip((o.activitySignals||{}).b2b, 92),
+    assetNote: _clip(String(o.balanceSheetNotes||"").split(";")[0], 92),
+    seasonal: /season|festi|wedding|harvest|monsoon|peak/i.test(vn),
+    corroborators: (o.dataPack||[]).filter(x=>/strong/i.test(x.strength||"")).slice(0,3).map(x=>x.source),
+  };
+}
+
 /* ---------- slice worker.js (same regions build-static uses) ---------- */
 const slice = (start, end) => { const a=src.indexOf(start), b=src.indexOf(end);
   if (a<0||b<0) throw new Error("marker not found: "+(a<0?start:end)); return src.slice(a,b); };
@@ -143,6 +163,26 @@ h1,h2,h3{color:var(--ink)}
 .step{background:#fff}
 /* inputs read cleaner on white */
 .rng input[type=number],.select{background:#fff}
+/* ===== Business X-Ray reconstructed cash-flow statement ===== */
+.xstmt{margin:2px 0 16px}
+.xstmt .xhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+.xstmt .xhead h2{margin:0;font-size:19px}
+.xmeta{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 2px}
+.xchip{font-size:11px;font-weight:700;background:#eef4ff;border:1px solid #cfe0ff;color:#1c49c9;border-radius:999px;padding:3px 10px}
+.xline td{padding:7px 9px;border-bottom:1px solid var(--line)}
+.xline.sub td{color:var(--mut);font-size:12px}
+.xline.sub td:first-child{padding-left:22px}
+.xline.total td{font-weight:800;border-top:2px solid var(--ink);border-bottom:none}
+.xline.net td{font-weight:800;background:#e7f6ee}
+.xline.memo td{color:var(--mut);font-size:12px;border-bottom:none}
+.xconf{display:inline-flex;align-items:center;gap:7px;min-width:140px}
+.xbar{flex:1;height:7px;background:#eef1f7;border-radius:999px;overflow:hidden;min-width:52px}
+.xbar>i{display:block;height:100%;border-radius:999px}
+.xcp{font-size:11px;color:var(--mut);white-space:nowrap}
+.xdim td{padding:9px;border-bottom:1px solid var(--line);vertical-align:top}
+.xdim .dn{font-weight:700;white-space:nowrap}
+.xdim .dv{font-size:12.5px}
+.xtag{font-size:10px;font-weight:800;border-radius:5px;padding:2px 7px;text-transform:uppercase;letter-spacing:.3px;background:#eef4ff;color:#1c49c9}
 `;
 
 /* ---------- bridge: register all 56 into the engine + band control ---------- */
@@ -405,6 +445,138 @@ function viewDemos2Gallery(){
 `;
 client = client + "\n" + demo2Block;
 
+/* ---------- Business X-Ray reconstructed cash-flow statement (headline output) ---------- */
+const oldXrayAnchor = `    +'<div class="grid cols-2">'
+    /* LEFT: inputs */`;
+const newXrayAnchor = `    +xrayStatement(result,s)
+    +'<div class="grid cols-2">'
+    /* LEFT: inputs */`;
+if(!client.includes(oldXrayAnchor)) throw new Error("xray injection anchor not found — worker.js render changed");
+client = client.replace(oldXrayAnchor, ()=>newXrayAnchor);
+
+const xrayBlock = `
+/* ===== Business X-Ray — reconstructed cash-flow statement with confidence scores ===== */
+const XRAY_EXTRAS = ${JSON.stringify(XRAY_EXTRAS)};
+const CASH_DEF={retail:0.40,fnb:0.45,services:0.25,warehouse:0.20,scrap:0.70,manufacturing:0.15,transport:0.15};
+const DRAW_DEF={retail:0.35,fnb:0.40,services:0.30,warehouse:0.20,scrap:0.30,manufacturing:0.20,transport:0.25};
+const CASH_HEAVY=new Set(['pan_shop','vegetable_shop','tea_stall','scrap_dealer','kirana','tiffin','catering']);
+const PURPOSE={manufacturing:'Capex / plant & machinery',transport:'Asset acquisition (vehicles)',warehouse:'Working-capital / inventory',scrap:'Working-capital / buy-side float',retail:'Working-capital / stock',fnb:'Working-capital / stock & fit-out',services:'Working-capital / receivables'};
+function _xmo(I){ I=I||{}; return {lo:(+I.lo||0)/12, base:(+I.base||0)/12, hi:(+I.hi||0)/12}; }
+function _xcl(x,a,b){ return Math.max(a,Math.min(b,x)); }
+function _cf(p){ p=Math.round(_xcl(p,0,99)); var band=p>=80?'High':p>=60?'Medium':p>=40?'Low':'Very low';
+  var col=p>=80?'var(--ok)':p>=60?'#b8860b':'var(--bad)';
+  return '<span class="xconf"><span class="xbar"><i style="width:'+p+'%;background:'+col+'"></i></span><span class="xcp">'+p+'% · '+band+'</span></span>'; }
+function xraySignals(result,sector){
+  var pnl=result.pnl, tri=result.triangulation||{}, ex=(STATE&&STATE.external)||{};
+  var arch=sector.archetype, xe=XRAY_EXTRAS[sector.id]||{};
+  var capL=new Set((STATE&&STATE.providedShots)||[]);
+  var has=function(fid){ return capL.has(FACET_LABEL[fid]); };
+  var narrowed=(STATE&&STATE._narrowed)||{};
+  var vk=(typeof _pick==='function')?_pick(STATE.drivers,VOL_KEYS):null;
+  var pk=(typeof _pick==='function')?_pick(STATE.drivers,PRICE_KEYS):null;
+  var cashShare = (tri.cashSharePct!=null) ? tri.cashSharePct/100
+                 : (CASH_HEAVY.has(sector.id)?0.6:(CASH_DEF[arch]!=null?CASH_DEF[arch]:0.30));
+  return { pnl:pnl,tri:tri,ex:ex,arch:arch,xe:xe,has:has,
+    volObs:!!(vk&&narrowed[vk]), priceObs:!!(pk&&narrowed[pk]),
+    invObs:pnl.inventorySource==='observed',
+    bankSig:!!(tri.banking), cashKnown:(tri.cashSharePct!=null),
+    gst:!!(ex.gstin||tri.gstin), energy:!!(ex.energy&&ex.energy.kwh>0),
+    cc:(result.quality&&result.quality.captureCompletion)||0,
+    relW:result.turnover.relWidth||1, cashShare:cashShare };
+}
+function _xrow(cls,label,mo,conf,note){
+  return '<tr class="xline '+cls+'"><td>'+label+'</td>'
+    +'<td class="num">'+fmtCr(mo.lo)+'</td><td class="num">'+fmtCr(mo.base)+'</td><td class="num">'+fmtCr(mo.hi)+'</td>'
+    +'<td>'+(conf==null?'<span class="small dim">—</span>':_cf(conf))+'</td>'
+    +'<td class="small dim">'+(note||'')+'</td></tr>';
+}
+function xrayStatement(result,sector){
+  var S=xraySignals(result,sector), pnl=S.pnl, xe=S.xe;
+  var mSales=_xmo(pnl.revenue), mCOGS=_xmo(pnl.cogs), mGP=_xmo(pnl.grossProfit), mOpex=_xmo(pnl.opex), mEB=_xmo(pnl.ebitda);
+  var bankSh=1-S.cashShare;
+  var mBank={lo:mSales.lo*bankSh,base:mSales.base*bankSh,hi:mSales.hi*bankSh};
+  var mCash={lo:mSales.lo*S.cashShare,base:mSales.base*S.cashShare,hi:mSales.hi*S.cashShare};
+  // drawings (modelled), existing debt service (modelled / AA), net surplus
+  var drawPct=(DRAW_DEF[S.arch]!=null?DRAW_DEF[S.arch]:0.30);
+  var drawBase=_xcl(mEB.base*drawPct, Math.min(15000,Math.max(0,mEB.base*0.9)), mEB.base>0?mEB.base*0.85:0);
+  var dr=mEB.base>0?drawBase/mEB.base:drawPct;
+  var mDraw={lo:mEB.lo*dr,base:drawBase,hi:mEB.hi*dr};
+  var dpct=xe.assetFinance?0.22:0;
+  var mDebt={lo:mEB.lo*dpct,base:mEB.base*dpct,hi:mEB.hi*dpct};
+  var mNet={lo:mEB.lo-mDraw.lo-mDebt.lo, base:mEB.base-mDraw.base-mDebt.base, hi:mEB.hi-mDraw.hi-mDebt.hi};
+  // per-line confidence
+  var cSales=_xcl(52+(S.volObs?24:0)+(S.priceObs?14:0)+(S.gst?8:0)-Math.max(0,(S.relW-0.30))*40,30,96);
+  var cGM=_xcl(55+((S.has('pukka_invoice')||S.priceObs)?15:0)+(S.gst?10:0),40,88);
+  var cOpex=_xcl(50+(S.energy?12:0),40,74);
+  var cEB=Math.round((cSales+cGM)/2);
+  var cCash=S.bankSig?86:(S.cashKnown?62:46);
+  var cDraw=_xcl(35+(S.has('rental_agreement')?12:0),30,60);
+  var cDebt=S.bankSig?62:(xe.assetFinance?42:36);
+  var cNet=Math.round((cEB+cDraw+cDebt)/3);
+  var cWC=_xcl(60+(S.invObs?20:0)+(S.has('credit_ledger')?10:0),45,92);
+  // dimensions
+  var cConc=_xcl(45+((S.has('credit_ledger')||S.has('deal_register')||S.has('dispatch'))?20:0)+(S.gst?15:0),35,90);
+  var cSeas=xe.seasonal?60:72;
+  var cPrem=_xcl(50+((S.has('rental_agreement')||S.has('utility_meter'))?20:0)+((S.has('exterior')&&S.has('neighbourhood'))?14:0),40,92);
+  var cInv=_xcl((S.invObs?80:55)+(S.has('machinery')?10:0),45,95);
+  var cAnom=S.bankSig?76:40;
+  var cLink=_xcl(30+((S.gst||S.has('gst_board')||S.has('udyam'))?20:0),25,60);
+  var cPurp=Math.round((cSales+cGM+cDraw+cDebt)/4);
+  var rentBand=xe.rent?(xe.rent[BAND]||xe.rent.metro):null, rentBase=rentBand?rentBand[1]:null;
+  var premVal=rentBase?('Rented · rent ~'+fmtCr(rentBase)+'/mo, '+(xe.depositMonths||'—')+'-mo deposit'):'Premises tenure to verify';
+  var dims=[
+    ['Actual monthly sales', fmtCr(mSales.base)+'/mo ('+fmtCr(mSales.lo)+'–'+fmtCr(mSales.hi)+')', cSales, 'Drivers × '+(S.priceObs?'photo-read price':'benchmark price')+' × '+(S.volObs?'photo-read volume':'benchmark volume')+(S.gst?'; GST-concordant':'')],
+    ['Cash vs banking turnover', Math.round(bankSh*100)+'% banked · '+Math.round(S.cashShare*100)+'% cash', cCash, S.bankSig?'AA/UPI credits ÷ turnover; cash = residual':'Modelled residual — confirm via Account Aggregator pull'],
+    ['Sustainable gross margin', Math.round(pnl.margins.gm[1]*100)+'% (γ) · GP '+fmtCr(mGP.base)+'/mo', cGM, 'Registry margin band'+(S.has('pukka_invoice')?', invoice-corroborated':', not yet invoice-corroborated')],
+    ['Household drawings', fmtCr(mDraw.base)+'/mo (~'+Math.round(dr*100)+'% of surplus)', cDraw, 'Modelled proprietor drawings — confirm from household interview / AA debits'],
+    ['Existing formal & informal debt', xe.assetFinance?('Asset-finance EMI likely · est. '+fmtCr(mDebt.base)+'/mo'):'No formal debt evidenced yet', cDebt, (S.bankSig?'AA debit mandates':'Balance-sheet profile')+' — bureau + AA required to confirm'],
+    ['Customer & supplier concentration', xe.b2b==='b2b'?'B2B — concentration risk (few large counterparties)':'B2C — diffuse customer base', cConc, xe.b2bNote||'GSTR-1 counterparty count in production'],
+    ['Business seasonality', xe.seasonal?'Seasonal — annualise from 12-mo record':'Broadly steady month-to-month', cSeas, 'Registry seasonality profile'+((S.has('event_order_book')||S.has('renewal_register'))?', order-book corroborated':'')],
+    ['Working-capital cycle', pnl.cycleDays+'d (DIO '+pnl.dio+'+DSO '+pnl.margins.dso+'−DPO '+pnl.margins.dpo+') · WCR '+fmtCr(pnl.wcr.base), cWC, 'WCR identity (Eq-4); '+(S.invObs?'inventory from stock photos':'inventory benchmark')],
+    ['Business-premises stability', premVal, cPrem, (S.has('utility_meter')?'Meter/consumer-no captured':'Ownership unverified')+(S.has('exterior')?'; shopfront confirmed':'')],
+    ['Inventory & asset ownership', 'Inventory '+fmtCr(pnl.inventory.base)+(S.invObs?' (observed)':' (benchmark)'), cInv, xe.assetNote||'Asset base from machinery/stock photos'],
+    ['Loan purpose & repayment source', (PURPOSE[S.arch]||'Working-capital')+' · repay from '+fmtCr(mNet.base)+'/mo net surplus', cPurp, 'Repayment = operating surplus − drawings − existing debt'],
+    ['Banking anomalies', S.bankSig?'Screened: bounce, round-tripping, concordance':'Not yet assessable — AA feed required', cAnom, S.bankSig?'AA statement analytics':'Connect Account Aggregator to scan'],
+    ['Family & related-business linkages', 'PAN / GST / Udyam linkage scan pending', cLink, 'Related-party & family-firm graph in production'],
+  ];
+  var overall=Math.round(dims.reduce(function(a,d){return a+d[2];},0)/dims.length);
+  var photos=(result.quality&&result.quality.shotsProvided)||0;
+  var extSig=(S.bankSig?1:0)+(S.gst?1:0)+(S.energy?1:0);
+  var rb=result.reviewBand||{};
+  var stmt='<table><thead><tr><th>Monthly line</th><th class="num">Cons.</th><th class="num">Base</th><th class="num">Optim.</th><th>Confidence</th><th>Basis</th></tr></thead><tbody>'
+    +_xrow('total','Total sales',mSales,cSales,S.priceObs||S.volObs?'photo-reconstructed':'sector prior')
+    +_xrow('sub','· banked (digital)',mBank,cCash,S.bankSig?'AA / UPI':'modelled')
+    +_xrow('sub','· cash (residual)',mCash,cCash,'surfaced, not hidden')
+    +_xrow('','less Cost of goods sold',mCOGS,cGM,'γ '+Math.round(pnl.margins.gm[1]*100)+'%')
+    +_xrow('total','Gross profit',mGP,cGM,'')
+    +_xrow('','less Operating expenses',mOpex,cOpex,'ω '+Math.round(pnl.margins.opex[1]*100)+'% (rent, power, staff)')
+    +_xrow('total','Operating surplus (EBITDA)',mEB,cEB,'')
+    +_xrow('','less Proprietor drawings',mDraw,cDraw,'modelled — verify')
+    +_xrow('','less Existing debt service',mDebt,cDebt,xe.assetFinance?'asset-finance EMI (est.)':'none evidenced')
+    +_xrow('net','Net surplus → repayment source',mNet,cNet,'free cash for a new EMI')
+    +_xrow('memo','memo: Working-capital tied up',_xmo(pnl.wcr),cWC,pnl.cycleDays+'-day trade cycle')
+    +'</tbody></table>';
+  var dimRows=dims.map(function(d){ return '<tr class="xdim"><td class="dn">'+d[0]+'</td><td class="dv">'+d[1]+'</td><td>'+_cf(d[2])+'</td><td class="small dim">'+d[3]+'</td></tr>'; }).join('');
+  return '<div class="card xstmt" style="margin-bottom:16px">'
+    +'<div class="xhead"><h2>Business X-Ray — reconstructed monthly cash-flow</h2><span class="tag Derived">reconstructed</span>'
+    +'<span class="spacer"></span><span class="xchip">Overall confidence '+overall+'%</span></div>'
+    +'<p class="note" style="margin:2px 0 8px">A bottom-up cash-flow rebuilt from the premises evidence and external signals — not a form summary. Every line carries a confidence score; a human underwriter makes the decision.</p>'
+    +'<div class="xmeta"><span class="xchip">Reconstructed from '+photos+' photo(s)</span><span class="xchip">'+extSig+' external signal(s)</span><span class="xchip">interval ±'+pct(result.turnover.relWidth/2)+'</span></div>'
+    +stmt
+    +'<div class="grid cols-3" style="margin-top:12px">'
+    +'<div class="kpi xkpi"><span class="k">Net monthly surplus</span><span class="v" style="font-size:20px">'+fmtCr(mNet.base)+'</span><span class="small dim">repayment source</span></div>'
+    +'<div class="kpi xkpi"><span class="k">Indicative serviceable EMI</span><span class="v" style="font-size:20px">'+fmtCr(Math.max(0,mNet.base*0.5))+'</span><span class="small dim">~50% of net surplus</span></div>'
+    +'<div class="kpi xkpi"><span class="k">Indicative review exposure</span><span class="v" style="font-size:20px">'+fmtCr(rb.base||0)+'</span><span class="small dim">policy overlay</span></div>'
+    +'</div>'
+    +'<h3 style="margin:16px 0 4px">Thirteen reconstructed dimensions <span class="tag Derived">confidence-scored</span></h3>'
+    +'<p class="note" style="margin:2px 0 8px">The analytical building blocks behind the statement above. Each is reconstructed from evidence, not asked on a form.</p>'
+    +'<table><thead><tr><th>Dimension</th><th>Reconstructed value</th><th>Confidence</th><th>Basis / evidence</th></tr></thead><tbody>'+dimRows+'</tbody></table>'
+    +'<p class="disclaimer" style="margin-top:12px">Illustrative rule-engine reconstruction. Modelled lines (drawings, existing debt, linkages) are flagged for verification via Account Aggregator, bureau and PAN/GST graph before any credit decision. The X-Ray reconstructs and recommends; a human underwriter decides.</p>'
+    +'</div>';
+}
+`;
+client = client + "\n" + xrayBlock;
+
 /* ---------- local api dispatcher (adds archetype to sectors) ---------- */
 const localApi = `
 async function api(path, opts){
@@ -442,6 +614,7 @@ ${pslGate("1504")}
     <a href="/industries">Industry Models</a>
     <a href="#/assess">Assessment</a>
     <a href="/data-backbone">Data Backbone</a>
+    <a href="/harness">Harness Sequence</a>
     <a href="#/demos">Demonstrations</a>
     <a href="#/governance">Governance</a>
   </nav>
