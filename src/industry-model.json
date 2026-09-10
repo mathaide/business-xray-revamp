@@ -1,7 +1,7 @@
 {
  "meta": {
   "name": "Business X-Ray — 56-Industry Imputation Knowledge Base",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "generated": "2026-08-29",
   "engineTarget": "worker.js 2.1.0 (SECTORS/REGISTRY/FACETS/rankEvidence)",
   "industryCount": 56,
@@ -142,8 +142,36 @@
   ],
   "varianceTarget": "turnover half-width (hi-lo)/2 ≤ 0.20 × base",
   "changelog": [
-   "1.1.0: FMCG distributor & cold-storage aligned to paper anchors; per-profile benchmark provenance added (fixture status)."
-  ]
+   "1.1.0: FMCG distributor & cold-storage aligned to paper anchors; per-profile benchmark provenance added (fixture status).",
+   "1.2.0: real-book calibration from Agrim HFC field data (733 cases / 177 self-employed) — per-profile observed frequency + rank + median photos; base rate 24% self-employed; archetype mix; capture-reality meta."
+  ],
+  "realBook": {
+   "source": "Agrim HFC Credit & Ops field capture (Telegram export, Dec 2021–Jan 2023)",
+   "namedCases": 733,
+   "selfEmployedBusinessCases": 177,
+   "selfEmployedSharePct": 24.0,
+   "archetypeShare": {
+    "retail": 47.5,
+    "services": 14.7,
+    "manufacturing": 11.9,
+    "transport": 11.3,
+    "fnb": 9.6,
+    "warehouse": 4.0,
+    "scrap": 1.1
+   },
+   "capture": {
+    "medianPhotos": 11,
+    "p25": 8,
+    "p75": 20,
+    "p90": 39,
+    "medianVideos": 1
+   },
+   "captureMix": {
+    "note": "Field bursts mix business-premises, KYC docs, property/construction, assets and home/selfie; geotagged+timestamped watermark on nearly all; faces/plates/PII commonly in frame."
+   },
+   "profilesObserved": 35,
+   "profilesAbsent": 21
+  }
  },
  "newFacets": [
   {
@@ -647,6 +675,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -916,6 +951,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 12,
+    "share": 6.8,
+    "rank": 3,
+    "medPhotos": 10,
+    "observed": true
    }
   },
   {
@@ -1159,6 +1201,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 4,
+    "share": 2.3,
+    "rank": 16,
+    "medPhotos": 30,
+    "observed": true
    }
   },
   {
@@ -1425,6 +1474,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 35,
+    "medPhotos": 9,
+    "observed": true
    }
   },
   {
@@ -1719,6 +1775,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -1989,6 +2052,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 21,
+    "medPhotos": 8,
+    "observed": true
    }
   },
   {
@@ -2278,6 +2348,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -2547,6 +2624,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 9,
+    "share": 5.1,
+    "rank": 8,
+    "medPhotos": 9,
+    "observed": true
    }
   },
   {
@@ -2841,6 +2925,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -3128,6 +3219,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 31,
+    "medPhotos": 5,
+    "observed": true
    }
   },
   {
@@ -3406,6 +3504,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -3685,6 +3790,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 5,
+    "share": 2.8,
+    "rank": 12,
+    "medPhotos": 13,
+    "observed": true
    }
   },
   {
@@ -3971,6 +4083,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 27,
+    "medPhotos": 5,
+    "observed": true
    }
   },
   {
@@ -4264,6 +4383,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 20,
+    "medPhotos": 7,
+    "observed": true
    }
   },
   {
@@ -4499,6 +4625,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 28,
+    "medPhotos": 8,
+    "observed": true
    }
   },
   {
@@ -4717,6 +4850,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 25,
+    "medPhotos": 26,
+    "observed": true
    }
   },
   {
@@ -4935,6 +5075,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 10,
+    "share": 5.6,
+    "rank": 5,
+    "medPhotos": 9,
+    "observed": true
    }
   },
   {
@@ -5170,6 +5317,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 11,
+    "share": 6.2,
+    "rank": 4,
+    "medPhotos": 23,
+    "observed": true
    }
   },
   {
@@ -5406,6 +5560,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -5635,6 +5796,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 19,
+    "share": 10.7,
+    "rank": 1,
+    "medPhotos": 12,
+    "observed": true
    }
   },
   {
@@ -5858,6 +6026,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 5,
+    "share": 2.8,
+    "rank": 13,
+    "medPhotos": 15,
+    "observed": true
    }
   },
   {
@@ -6104,6 +6279,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 29,
+    "medPhotos": 59,
+    "observed": true
    }
   },
   {
@@ -6330,6 +6512,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 22,
+    "medPhotos": 6,
+    "observed": true
    }
   },
   {
@@ -6583,6 +6772,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 3,
+    "share": 1.7,
+    "rank": 17,
+    "medPhotos": 11,
+    "observed": true
    }
   },
   {
@@ -6812,6 +7008,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 19,
+    "share": 10.7,
+    "rank": 2,
+    "medPhotos": 15,
+    "observed": true
    }
   },
   {
@@ -7052,6 +7255,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 3,
+    "share": 1.7,
+    "rank": 18,
+    "medPhotos": 14,
+    "observed": true
    }
   },
   {
@@ -7279,6 +7489,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 8,
+    "share": 4.5,
+    "rank": 10,
+    "medPhotos": 16,
+    "observed": true
    }
   },
   {
@@ -7497,6 +7714,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 23,
+    "medPhotos": 15,
+    "observed": true
    }
   },
   {
@@ -7734,6 +7958,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -7962,6 +8193,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -8192,6 +8430,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -8425,6 +8670,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 30,
+    "medPhotos": 10,
+    "observed": true
    }
   },
   {
@@ -8655,6 +8907,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -8908,6 +9167,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -9147,6 +9413,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -9368,6 +9641,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -9601,6 +9881,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 8,
+    "share": 4.5,
+    "rank": 9,
+    "medPhotos": 5,
+    "observed": true
    }
   },
   {
@@ -9821,6 +10108,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -10058,6 +10352,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -10289,6 +10590,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -10511,6 +10819,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 33,
+    "medPhotos": 7,
+    "observed": true
    }
   },
   {
@@ -10742,6 +11057,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 5,
+    "share": 2.8,
+    "rank": 11,
+    "medPhotos": 16,
+    "observed": true
    }
   },
   {
@@ -10977,6 +11299,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 34,
+    "medPhotos": 9,
+    "observed": true
    }
   },
   {
@@ -11215,6 +11544,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 5,
+    "share": 2.8,
+    "rank": 15,
+    "medPhotos": 17,
+    "observed": true
    }
   },
   {
@@ -11448,6 +11784,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -11674,6 +12017,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -11908,6 +12258,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 5,
+    "share": 2.8,
+    "rank": 14,
+    "medPhotos": 6,
+    "observed": true
    }
   },
   {
@@ -12190,6 +12547,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 9,
+    "share": 5.1,
+    "rank": 7,
+    "medPhotos": 8,
+    "observed": true
    }
   },
   {
@@ -12452,6 +12816,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -12720,6 +13091,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 1,
+    "share": 0.6,
+    "rank": 32,
+    "medPhotos": 101,
+    "observed": true
    }
   },
   {
@@ -12982,6 +13360,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 10,
+    "share": 5.6,
+    "rank": 6,
+    "medPhotos": 15,
+    "observed": true
    }
   },
   {
@@ -13215,6 +13600,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   },
   {
@@ -13448,6 +13840,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 26,
+    "medPhotos": 13,
+    "observed": true
    }
   },
   {
@@ -13675,6 +14074,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 3,
+    "share": 1.7,
+    "rank": 19,
+    "medPhotos": 12,
+    "observed": true
    }
   },
   {
@@ -13890,6 +14296,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 2,
+    "share": 1.1,
+    "rank": 24,
+    "medPhotos": 12,
+    "observed": true
    }
   },
   {
@@ -14116,6 +14529,13 @@
     "owner": "Credit analytics",
     "driftThreshold": "±15% revenue · ±3pp margin",
     "signedOff": false
+   },
+   "realBook": {
+    "cases": 0,
+    "share": 0.0,
+    "rank": null,
+    "medPhotos": null,
+    "observed": false
    }
   }
  ]

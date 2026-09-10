@@ -126,6 +126,11 @@ for (const o of kb.industries){
   };
 }
 
+/* ---------- real-book calibration (Agrim HFC field data) ---------- */
+const REALBOOK = {};
+for (const o of kb.industries){ if (o.realBook) REALBOOK[o.id] = o.realBook; }
+const REALBOOK_META = (kb.meta && kb.meta.realBook) || null;
+
 /* ---------- slice worker.js (same regions build-static uses) ---------- */
 const slice = (start, end) => { const a=src.indexOf(start), b=src.indexOf(end);
   if (a<0||b<0) throw new Error("marker not found: "+(a<0?start:end)); return src.slice(a,b); };
@@ -196,6 +201,8 @@ const IND_FAC = ${JSON.stringify(IND_FAC)};
 const GENERIC = new Set(${JSON.stringify(GENERIC)});
 const FACET_LABEL = ${JSON.stringify(FACET_LABEL)};
 const ARCHE_LABEL = {retail:'Retail / kirana',fnb:'Food & beverage',services:'Services',warehouse:'Warehouse / distribution',scrap:'Scrap trading',manufacturing:'Light manufacturing',transport:'Transport / logistics'};
+const REALBOOK = ${JSON.stringify(REALBOOK)};
+const REALBOOK_META = ${JSON.stringify(REALBOOK_META)};
 let BAND='metro';
 (function registerIndustries(){
   for(const s of IND_SECTORS){
@@ -224,10 +231,12 @@ const oldPicker = `function sectorPicker(){
   return '<select class="select" id="sectorSel">'+META.sectors.map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+s.name+'</option>').join('')+'</select>';
 }`;
 const newPicker = `function sectorPicker(){
+  function _rbRank(s){ var r=REALBOOK[s.id]; return (r&&r.observed)?r.rank:999; }
+  function _rbLabel(s){ var r=REALBOOK[s.id]; return (r&&r.observed)?(s.name+' · #'+r.rank+' ('+r.share+'%)'):(s.name+' · ext'); }
   const groups={}; META.sectors.forEach(s=>{ if(GENERIC.has(s.id))return; (groups[s.archetype]=groups[s.archetype]||[]).push(s); });
-  let opts=Object.keys(ARCHE_LABEL).filter(a=>groups[a]).map(a=>'<optgroup label="'+ARCHE_LABEL[a]+'">'+groups[a].slice().sort((x,y)=>x.name.localeCompare(y.name)).map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+s.name+'</option>').join('')+'</optgroup>').join('');
+  let opts=Object.keys(ARCHE_LABEL).filter(a=>groups[a]).map(a=>'<optgroup label="'+ARCHE_LABEL[a]+'">'+groups[a].slice().sort((x,y)=>(_rbRank(x)-_rbRank(y))||x.name.localeCompare(y.name)).map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+_rbLabel(s)+'</option>').join('')+'</optgroup>').join('');
   const gen=META.sectors.filter(s=>GENERIC.has(s.id));
-  if(gen.length) opts+='<optgroup label="Generic archetype (reference)">'+gen.map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+s.name+'</option>').join('')+'</optgroup>';
+  if(gen.length) opts+='<optgroup label="Generic archetype (reference)">'+gen.map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+_rbLabel(s)+'</option>').join('')+'</optgroup>';
   const banner = STATE._fromCapture ? '<div class="disclaimer" style="width:100%;margin-bottom:8px;background:var(--okbg,#e7f6ee);color:var(--ok,#0c6b3f);border:1px solid #bfe6cf">◉ Assessment derived from <b>'+STATE._fromCapture.n+' photo(s) captured on-site</b> for '+STATE._fromCapture.name+'. Drivers marked <b>◉ from photo</b> were tightened by the evidence read during capture — take more photos to close the interval further.</div>' : '';
   return banner+'<span class="chip'+(BAND==='metro'?' on':'')+'" data-band="metro">Metro</span><span class="chip'+(BAND==='nonmetro'?' on':'')+'" data-band="nonmetro">Non-metro</span> <select class="select" id="sectorSel">'+opts+'</select>';
 }`;
@@ -546,6 +555,10 @@ function xrayStatement(result,sector){
   var rb=result.reviewBand||{};
   var bm=xe.benchmark||{status:'fixture',effectivePeriod:'2026-Q3',owner:'Credit analytics'};
   var provChip='<span class="xchip" title="Benchmark registry: '+(bm.owner||'')+' · drift '+(bm.driftThreshold||'')+' · not yet independently validated">benchmark: '+(bm.status||'fixture')+' · '+(bm.effectivePeriod||'')+'</span>';
+  var rbk=REALBOOK[sector.id]; var rbChip='';
+  if(rbk){ rbChip = rbk.observed
+    ? '<span class="xchip" title="Frequency in the Agrim HFC reference book (733 field cases, Dec 2021–Jan 2023); median '+rbk.medPhotos+' photos captured per visit">real-book: #'+rbk.rank+' · '+rbk.share+'% of self-employed cases</span>'
+    : '<span class="xchip" style="background:#fdf3e1;border-color:#f0d9a0;color:#8a5a00" title="Not observed in the Agrim HFC reference book — extended taxonomy, benchmark unvalidated against real cases">real-book: not observed (extended)</span>'; }
   var stmt='<table><thead><tr><th>Monthly line</th><th class="num">Cons.</th><th class="num">Base</th><th class="num">Optim.</th><th>Evidence strength</th><th>Basis</th></tr></thead><tbody>'
     +_xrow('total','Total sales',mSales,cSales,S.priceObs||S.volObs?'photo-reconstructed':'sector prior')
     +_xrow('sub','· banked (digital)',mBank,cCash,S.bankSig?'AA / UPI':'modelled')
@@ -564,7 +577,7 @@ function xrayStatement(result,sector){
     +'<div class="xhead"><h2>Business X-Ray — reconstructed monthly cash-flow</h2><span class="tag Derived">reconstructed</span>'
     +'<span class="spacer"></span><span class="xchip">Evidence strength '+overall+'%</span></div>'
     +'<p class="note" style="margin:2px 0 8px">A bottom-up cash-flow rebuilt from the premises evidence and external signals — not a form summary. Every line carries an <b>evidence-strength</b> score (how well the line is corroborated), and a human underwriter makes the decision.</p>'
-    +'<div class="xmeta"><span class="xchip">Reconstructed from '+photos+' photo(s)</span><span class="xchip">'+extSig+' external signal(s)</span><span class="xchip">interval ±'+pct(result.turnover.relWidth/2)+'</span>'+provChip+'</div>'
+    +'<div class="xmeta"><span class="xchip">Reconstructed from '+photos+' photo(s)</span><span class="xchip">'+extSig+' external signal(s)</span><span class="xchip">interval ±'+pct(result.turnover.relWidth/2)+'</span>'+rbChip+provChip+'</div>'
     +stmt
     +'<div class="grid cols-3" style="margin-top:12px">'
     +'<div class="kpi xkpi"><span class="k">Net monthly surplus</span><span class="v" style="font-size:20px">'+fmtCr(mNet.base)+'</span><span class="small dim">repayment source</span></div>'
