@@ -1,7 +1,7 @@
 {
  "meta": {
   "name": "Business X-Ray — 56-Industry Imputation Knowledge Base",
-  "version": "1.2.0",
+  "version": "1.3.1",
   "generated": "2026-08-29",
   "engineTarget": "worker.js 2.1.0 (SECTORS/REGISTRY/FACETS/rankEvidence)",
   "industryCount": 56,
@@ -143,7 +143,8 @@
   "varianceTarget": "turnover half-width (hi-lo)/2 ≤ 0.20 × base",
   "changelog": [
    "1.1.0: FMCG distributor & cold-storage aligned to paper anchors; per-profile benchmark provenance added (fixture status).",
-   "1.2.0: real-book calibration from Agrim HFC field data (733 cases / 177 self-employed) — per-profile observed frequency + rank + median photos; base rate 24% self-employed; archetype mix; capture-reality meta."
+   "1.2.0: real-book calibration from Agrim HFC field data (733 cases / 177 self-employed) — per-profile observed frequency + rank + median photos; base rate 24% self-employed; archetype mix; capture-reality meta.",
+   "1.3.0: financial calibration from Agrim LOS — 20 self-employed profiles rescaled to real assessed turnover + real bank share + realFin; added salaried_bank and salaried_cash profiles."
   ],
   "realBook": {
    "source": "Agrim HFC Credit & Ops field capture (Telegram export, Dec 2021–Jan 2023)",
@@ -171,6 +172,61 @@
    },
    "profilesObserved": 35,
    "profilesAbsent": 21
+  },
+  "realFin": {
+   "source": "Agrim HFC Loan Origination System (Veefin superset datamart), 229k applications",
+   "selfEmployedAssessed": 492,
+   "profilesRecalibrated": 20,
+   "salaried": {
+    "bankCredited": 2457,
+    "cash": 748,
+    "unclassified": 6769
+   },
+   "calibrated": "per-profile monthly turnover bands, cash-vs-bank share, and monthly income",
+   "notCalibrated": "gross/net margin and working-capital days (structured CM P&L populated on too few cases to be reliable)",
+   "salariedTypes": {
+    "salaried_manager": {
+     "n": 844,
+     "incomeMedian": 30000,
+     "cashShare": 0.111
+    },
+    "salaried_worker": {
+     "n": 753,
+     "incomeMedian": 22000,
+     "cashShare": 0.223
+    },
+    "salaried_office": {
+     "n": 306,
+     "incomeMedian": 25000,
+     "cashShare": 0.173
+    },
+    "salaried_driver": {
+     "n": 289,
+     "incomeMedian": 25000,
+     "cashShare": 0.197
+    },
+    "salaried_supervisor": {
+     "n": 279,
+     "incomeMedian": 25000,
+     "cashShare": 0.158
+    },
+    "salaried_teacher": {
+     "n": 223,
+     "incomeMedian": 35000,
+     "cashShare": 0.054
+    },
+    "salaried_support": {
+     "n": 206,
+     "incomeMedian": 25000,
+     "cashShare": 0.092
+    },
+    "salaried_sales": {
+     "n": 188,
+     "incomeMedian": 25000,
+     "cashShare": 0.245
+    }
+   },
+   "salariedTotal": 10006
   }
  },
  "newFacets": [
@@ -457,27 +513,27 @@
       "label": "Plates / event (batch capacity)",
       "unit": "plates",
       "cls": "Claim",
-      "lo": 202,
-      "base": 250,
-      "hi": 343
+      "lo": 97.9586,
+      "base": 121.2359,
+      "hi": 166.3357
      },
      {
       "key": "turns",
       "label": "Events / serving day",
       "unit": "events",
       "cls": "Claim",
-      "lo": 1.051,
-      "base": 1.2,
-      "hi": 1.497
+      "lo": 0.5097,
+      "base": 0.5819,
+      "hi": 0.726
      },
      {
       "key": "cover",
       "label": "Price / plate",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 376,
-      "base": 450,
-      "hi": 580
+      "lo": 182.3389,
+      "base": 218.2247,
+      "hi": 281.2674
      },
      {
       "key": "days",
@@ -495,27 +551,27 @@
       "label": "Plates / event (batch capacity)",
       "unit": "plates",
       "cls": "Claim",
-      "lo": 163,
-      "base": 200,
-      "hi": 275
+      "lo": 79.0458,
+      "base": 96.9888,
+      "hi": 133.3595
      },
      {
       "key": "turns",
       "label": "Events / serving day",
       "unit": "events",
       "cls": "Claim",
-      "lo": 0.888,
-      "base": 1,
-      "hi": 1.225
+      "lo": 0.4306,
+      "base": 0.4849,
+      "hi": 0.5941
      },
      {
       "key": "cover",
       "label": "Price / plate",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 231,
-      "base": 280,
-      "hi": 362
+      "lo": 112.022,
+      "base": 135.7843,
+      "hi": 175.5496
      },
      {
       "key": "days",
@@ -644,12 +700,12 @@
    "balanceSheetNotes": "inventory low & event-driven (bought against confirmed orders) — DIO 4–6d; receivables material (event clients 15–30d, DSO 18–25) partly offset by customer advances (current liability); payables = raw-material suppliers 10–20d; fixed assets = cooking range, bulk vessels, refrigeration, transport, tents/serving gear",
    "monthlyRevenueBand": {
     "metro": [
-     500000,
-     4000000
+     146930,
+     242280
     ],
     "nonmetro": [
-     200000,
-     1500000
+     102851,
+     169596
     ]
    },
    "varianceNotes": "Highly seasonal — annualise from the 12-month order book, never from one month; GST + advance ledger + order book concordance → ≤10–15%; photo-only wide (±30–40%) because there are no fixed seats to observe until the booking register lands",
@@ -682,6 +738,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 18,
+    "turnoverMonthly": {
+     "median": 166790,
+     "p25": 146930,
+     "p75": 242280
+    },
+    "incomeMonthly": 85000,
+    "netMarginProxy": 0.341,
+    "bankShare": 0.331,
+    "rescaleFactor": 0.114
    }
   },
   {
@@ -731,27 +800,27 @@
       "label": "Covers (seats)",
       "unit": "seats",
       "cls": "Observed",
-      "lo": 30,
-      "base": 45,
-      "hi": 65
+      "lo": 15.1277,
+      "base": 22.6915,
+      "hi": 32.7766
      },
      {
       "key": "turns",
       "label": "Table turns / day (incl. takeaway equiv.)",
       "unit": "turns",
       "cls": "Observed",
-      "lo": 2,
-      "base": 3,
-      "hi": 4.2
+      "lo": 1.0085,
+      "base": 1.5128,
+      "hi": 2.1179
      },
      {
       "key": "cover",
       "label": "Average cover / head",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 280,
-      "base": 420,
-      "hi": 600
+      "lo": 141.1915,
+      "base": 211.7872,
+      "hi": 302.5532
      },
      {
       "key": "days",
@@ -769,27 +838,27 @@
       "label": "Covers (seats)",
       "unit": "seats",
       "cls": "Observed",
-      "lo": 24,
-      "base": 36,
-      "hi": 52
+      "lo": 12.1021,
+      "base": 18.1532,
+      "hi": 26.2213
      },
      {
       "key": "turns",
       "label": "Table turns / day (incl. takeaway equiv.)",
       "unit": "turns",
       "cls": "Observed",
-      "lo": 1.6,
-      "base": 2.4,
-      "hi": 3.4
+      "lo": 0.8068,
+      "base": 1.2102,
+      "hi": 1.7145
      },
      {
       "key": "cover",
       "label": "Average cover / head",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 150,
-      "base": 240,
-      "hi": 340
+      "lo": 75.6383,
+      "base": 121.0213,
+      "hi": 171.4468
      },
      {
       "key": "days",
@@ -920,12 +989,12 @@
    "balanceSheetNotes": "inventory = walk-in/chiller + dry-store worksheet (Observed), perishable so low DIO overrides benchmark; receivables = aggregator settlement float (T+7) only, dine-in cash/UPI ≈ 0; payables = veg daily + grocery 15–30d credit; fixed assets = kitchen equipment, chillers, seating, POS, signage",
    "monthlyRevenueBand": {
     "metro": [
-     900000,
-     3500000
+     155682,
+     253575
     ],
     "nonmetro": [
-     300000,
-     1500000
+     108977,
+     177502
     ]
    },
    "varianceNotes": "Aggregator + UPI + GST concordance → ≤10%; photo-only ≈ ±25–30% until seat-fill curve + POS day-total close the seats/turns gap; cash-heavy standalone eateries stay wider until footfall timed captures land",
@@ -958,6 +1027,19 @@
     "rank": 3,
     "medPhotos": 10,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 36,
+    "turnoverMonthly": {
+     "median": 218100,
+     "p25": 155682,
+     "p75": 253575
+    },
+    "incomeMonthly": 80000,
+    "netMarginProxy": 0.381,
+    "bankShare": 0.293,
+    "rescaleFactor": 0.128
    }
   },
   {
@@ -1007,27 +1089,27 @@
       "label": "Standing/bench service spots",
       "unit": "spots",
       "cls": "Observed",
-      "lo": 4.93,
-      "base": 6,
-      "hi": 8.139
+      "lo": 4.9391,
+      "base": 6.011,
+      "hi": 8.154
      },
      {
       "key": "turns",
       "label": "Customers / spot / day (very high)",
       "unit": "turns",
       "cls": "Claim",
-      "lo": 27,
-      "base": 35,
-      "hi": 45.7
+      "lo": 27.0496,
+      "base": 35.0643,
+      "hi": 45.784
      },
      {
       "key": "cover",
       "label": "Average spend / customer",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 15.7,
-      "base": 20,
-      "hi": 28
+      "lo": 15.7289,
+      "base": 20.0368,
+      "hi": 28.0515
      },
      {
       "key": "days",
@@ -1045,27 +1127,27 @@
       "label": "Standing/bench service spots",
       "unit": "spots",
       "cls": "Observed",
-      "lo": 3.894,
-      "base": 5,
-      "hi": 6.659
+      "lo": 3.9012,
+      "base": 5.0092,
+      "hi": 6.6712
      },
      {
       "key": "turns",
       "label": "Customers / spot / day (very high)",
       "unit": "turns",
       "cls": "Claim",
-      "lo": 23.4,
-      "base": 30,
-      "hi": 40
+      "lo": 23.443,
+      "base": 30.0551,
+      "hi": 40.0735
      },
      {
       "key": "cover",
       "label": "Average spend / customer",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 8.681,
-      "base": 12,
-      "hi": 16.4
+      "lo": 8.697,
+      "base": 12.0221,
+      "hi": 16.4301
      },
      {
       "key": "days",
@@ -1176,12 +1258,12 @@
    "balanceSheetNotes": "inventory ≈ nil (milk daily, tea/sugar few days) — DIO 1–2d, ignore benchmark stock build; receivables = 0 (cash/UPI at point of sale); payables = milk vendor 2–5d only; fixed assets = cart/kiosk, LPG burner, urn, benches — collateral-light",
    "monthlyRevenueBand": {
     "metro": [
-     60000,
-     250000
+     79663,
+     158600
     ],
     "nonmetro": [
-     25000,
-     100000
+     55764,
+     111020
     ]
    },
    "varianceNotes": "Cash-heavy → UPI concordance weak; milk-intake back-check + timed cups-per-hour count are what drive turns half-width to ≤20%; price photo pins the tiny cover; GST usually absent",
@@ -1208,6 +1290,19 @@
     "rank": 16,
     "medPhotos": 30,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 15,
+    "turnoverMonthly": {
+     "median": 127400,
+     "p25": 79663,
+     "p75": 158600
+    },
+    "incomeMonthly": 60000,
+    "netMarginProxy": 0.455,
+    "bankShare": 0.527,
+    "rescaleFactor": 1.006
    }
   },
   {
@@ -1530,9 +1625,9 @@
       "label": "Finished output / hr",
       "unit": "kg/hr",
       "cls": "Observed",
-      "lo": 450,
-      "base": 600,
-      "hi": 780
+      "lo": 100.6231,
+      "base": 134.1641,
+      "hi": 174.4133
      },
      {
       "key": "hours",
@@ -1557,9 +1652,9 @@
       "label": "Realisation / kg finished",
       "unit": "₹/kg",
       "cls": "Claim",
-      "lo": 78,
-      "base": 90,
-      "hi": 104
+      "lo": 17.4413,
+      "base": 20.1246,
+      "hi": 23.2551
      },
      {
       "key": "days",
@@ -1577,9 +1672,9 @@
       "label": "Finished output / hr",
       "unit": "kg/hr",
       "cls": "Observed",
-      "lo": 320,
-      "base": 450,
-      "hi": 600
+      "lo": 71.5542,
+      "base": 100.6231,
+      "hi": 134.1641
      },
      {
       "key": "hours",
@@ -1604,9 +1699,9 @@
       "label": "Realisation / kg finished",
       "unit": "₹/kg",
       "cls": "Claim",
-      "lo": 72,
-      "base": 82,
-      "hi": 94
+      "lo": 16.0997,
+      "base": 18.3358,
+      "hi": 21.019
      },
      {
       "key": "days",
@@ -1732,12 +1827,12 @@
    "balanceSheetNotes": "Inventory splits RM (seasonal grain/seed, largest and most volatile) + WIP (in-process/settling) + FG (bagged) via stock worksheet, overriding benchmark DIO at peak; receivables = trader credit 25–35d; payables = commission-agent/farmer credit 20–30d; fixed assets = expeller/pulveriser/cleaning line, silos, weighbridge, shed",
    "monthlyRevenueBand": {
     "metro": [
-     5000000,
-     15000000
+     184110,
+     425442
     ],
     "nonmetro": [
-     2500000,
-     9000000
+     128877,
+     297809
     ]
    },
    "varianceNotes": "Energy proxy is strong here: kWh vs nameplate load closes the util/uph gap fast; e-way + GST concordance → ≤12%. Photo-only ≈ ±25–30% until nameplate + power reading + shift log land, mainly due to seasonal utilisation swing",
@@ -1782,6 +1877,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 8,
+    "turnoverMonthly": {
+     "median": 279990,
+     "p25": 184110,
+     "p75": 425442
+    },
+    "incomeMonthly": 110000,
+    "netMarginProxy": 0.145,
+    "bankShare": null,
+    "rescaleFactor": 0.03
    }
   },
   {
@@ -1831,9 +1939,9 @@
       "label": "Finished-piece equivalents / productive hour",
       "unit": "units/hr",
       "cls": "Observed",
-      "lo": 0.685,
-      "base": 0.9,
-      "hi": 1.169
+      "lo": 0.4213,
+      "base": 0.5535,
+      "hi": 0.7189
      },
      {
       "key": "hours",
@@ -1858,9 +1966,9 @@
       "label": "Blended realisation / piece",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 2693,
-      "base": 3500,
-      "hi": 4845
+      "lo": 1656.1715,
+      "base": 2152.4695,
+      "hi": 2979.6328
      },
      {
       "key": "days",
@@ -1878,9 +1986,9 @@
       "label": "Finished-piece equivalents / productive hour",
       "unit": "units/hr",
       "cls": "Observed",
-      "lo": 0.568,
-      "base": 0.75,
-      "hi": 0.984
+      "lo": 0.3493,
+      "base": 0.4612,
+      "hi": 0.6052
      },
      {
       "key": "hours",
@@ -1905,9 +2013,9 @@
       "label": "Blended realisation / piece",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 1881,
-      "base": 2400,
-      "hi": 3335
+      "lo": 1156.7986,
+      "base": 1475.9791,
+      "hi": 2050.9959
      },
      {
       "key": "days",
@@ -2034,12 +2142,12 @@
    "balanceSheetNotes": "Inventory = timber/ply/board/hardware RM + WIP half-built pieces (worksheet overrides DIO) + small FG; receivables low as advances are taken; customer advances on made-to-order work are a real liability; payables = timber supplier 20–30d; fixed assets = table saw, planer, router, hand tools, workbenches.",
    "monthlyRevenueBand": {
     "metro": [
-     250000,
-     900000
+     109200,
+     158340
     ],
     "nonmetro": [
-     120000,
-     500000
+     76440,
+     110838
     ]
    },
    "varianceNotes": "Cash-heavy and often unregistered → pack concordance weak; expect ±30–35% photo-only, tightening to ≈15–18% once order pad, headcount and invoice sample close utilisation, uph and price.",
@@ -2059,6 +2167,19 @@
     "rank": 21,
     "medPhotos": 8,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 29,
+    "turnoverMonthly": {
+     "median": 142965,
+     "p25": 109200,
+     "p75": 158340
+    },
+    "incomeMonthly": 60000,
+    "netMarginProxy": 0.374,
+    "bankShare": 0.263,
+    "rescaleFactor": 0.378
    }
   },
   {
@@ -2108,9 +2229,9 @@
       "label": "Billable jobs / machine-hour (shop aggregate)",
       "unit": "jobs/hr",
       "cls": "Observed",
-      "lo": 1.2,
-      "base": 1.8,
-      "hi": 2.5
+      "lo": 0.9977,
+      "base": 1.4966,
+      "hi": 2.0786
      },
      {
       "key": "hours",
@@ -2135,9 +2256,9 @@
       "label": "Blended realisation / job",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 1800,
-      "base": 2800,
-      "hi": 4200
+      "lo": 1496.6042,
+      "base": 2328.051,
+      "hi": 3492.0765
      },
      {
       "key": "days",
@@ -2155,9 +2276,9 @@
       "label": "Billable jobs / machine-hour (shop aggregate)",
       "unit": "jobs/hr",
       "cls": "Observed",
-      "lo": 1,
-      "base": 1.5,
-      "hi": 2.2
+      "lo": 0.8314,
+      "base": 1.2472,
+      "hi": 1.8292
      },
      {
       "key": "hours",
@@ -2182,9 +2303,9 @@
       "label": "Blended realisation / job",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 1200,
-      "base": 2000,
-      "hi": 3200
+      "lo": 997.7361,
+      "base": 1662.8936,
+      "hi": 2660.6297
      },
      {
       "key": "days",
@@ -2311,12 +2432,12 @@
    "balanceSheetNotes": "Inventory = bar/plate RM stock + WIP jobs on the floor (worksheet overrides DIO) + minimal FG (dispatched to order); receivables material — B2B credit 30–60d drives WCR; customer advances on large jobs sit as a liability; payables = steel supplier 30d; fixed assets = lathes, CNC, milling, welding sets, tooling.",
    "monthlyRevenueBand": {
     "metro": [
-     500000,
-     1500000
+     413974,
+     622564
     ],
     "nonmetro": [
-     250000,
-     800000
+     289782,
+     435795
     ]
    },
    "varianceNotes": "GST + e-way + AA concordance pulls turnover half-width to ≤10–12%; photo-only ≈ ±30% until order book + machine count close the utilisation and uph gaps.",
@@ -2355,6 +2476,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 24,
+    "turnoverMonthly": {
+     "median": 509560,
+     "p25": 413974,
+     "p75": 622564
+    },
+    "incomeMonthly": 80000,
+    "netMarginProxy": 0.143,
+    "bankShare": null,
+    "rescaleFactor": 0.691
    }
   },
   {
@@ -5373,18 +5507,18 @@
       "label": "Average ticket",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 25000,
-      "base": 45000,
-      "hi": 80000
+      "lo": 5590.1699,
+      "base": 10062.3059,
+      "hi": 17888.5438
      },
      {
       "key": "txns",
       "label": "Transactions / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 4,
-      "base": 8,
-      "hi": 16
+      "lo": 0.8944,
+      "base": 1.7889,
+      "hi": 3.5777
      },
      {
       "key": "days",
@@ -5402,18 +5536,18 @@
       "label": "Average ticket",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 18000,
-      "base": 30000,
-      "hi": 55000
+      "lo": 4024.9224,
+      "base": 6708.2039,
+      "hi": 12298.3739
      },
      {
       "key": "txns",
       "label": "Transactions / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 3,
-      "base": 6,
-      "hi": 12
+      "lo": 0.6708,
+      "base": 1.3416,
+      "hi": 2.6833
      },
      {
       "key": "days",
@@ -5539,12 +5673,12 @@
    "balanceSheetNotes": "inventory dominates the entire balance sheet = vault gold/silver weight worksheet (grams × karat × live rate, Observed) far overrides benchmark DIO; portion may be gold-loan financed (metal payable) — separate owned vs borrowed metal; receivables small (booking/scheme); scheme advances are a liability; fixed assets = safe/vault, CCTV, secured display, hallmark/assay kit",
    "monthlyRevenueBand": {
     "metro": [
-     3000000,
-     15000000
+     221325,
+     540020
     ],
     "nonmetro": [
-     1500000,
-     7000000
+     154928,
+     378014
     ]
    },
    "varianceNotes": "GST + HUID + bank concordance → ≤10%; photo-only ≈ ±35% because very low txns make count errors dominant and inventory value swings with gold rate; making-charge slip + HUID log + vault worksheet close ticket/txns/dio",
@@ -5567,6 +5701,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 11,
+    "turnoverMonthly": {
+     "median": 357250,
+     "p25": 221325,
+     "p75": 540020
+    },
+    "incomeMonthly": 70000,
+    "netMarginProxy": 0.294,
+    "bankShare": null,
+    "rescaleFactor": 0.033
    }
   },
   {
@@ -5616,18 +5763,18 @@
       "label": "Average basket",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 180,
-      "base": 250,
-      "hi": 340
+      "lo": 131.1094,
+      "base": 182.0963,
+      "hi": 247.651
      },
      {
       "key": "txns",
       "label": "Transactions / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 110,
-      "base": 170,
-      "hi": 260
+      "lo": 80.1224,
+      "base": 123.8255,
+      "hi": 189.3802
      },
      {
       "key": "days",
@@ -5645,18 +5792,18 @@
       "label": "Average basket",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 90,
-      "base": 150,
-      "hi": 220
+      "lo": 65.5547,
+      "base": 109.2578,
+      "hi": 160.2448
      },
      {
       "key": "txns",
       "label": "Transactions / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 80,
-      "base": 130,
-      "hi": 210
+      "lo": 58.2708,
+      "base": 94.6901,
+      "hi": 152.9609
      },
      {
       "key": "days",
@@ -5765,12 +5912,12 @@
    "balanceSheetNotes": "inventory = shelf + back-stock worksheet (Observed) overrides benchmark DIO; near-zero receivables (cash/UPI, small khata book); payables = distributor credit 15–30d; fixed assets = shelving, one/two refrigerators, weighing scale, POS/QR",
    "monthlyRevenueBand": {
     "metro": [
-     500000,
-     2000000
+     428760,
+     1119000
     ],
     "nonmetro": [
-     180000,
-     1000000
+     300132,
+     783300
     ]
    },
    "varianceNotes": "UPI+GST concordance → ≤10%; photo-only ≈ ±25–30% until footfall curve + Z-report close the txns gap; cash-heavy tail is the main residual",
@@ -5803,6 +5950,19 @@
     "rank": 1,
     "medPhotos": 12,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 68,
+    "turnoverMonthly": {
+     "median": 667050,
+     "p25": 428760,
+     "p75": 1119000
+    },
+    "incomeMonthly": 65000,
+    "netMarginProxy": 0.108,
+    "bankShare": 0.209,
+    "rescaleFactor": 0.531
    }
   },
   {
@@ -6568,18 +6728,18 @@
       "label": "Average bill",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 220,
-      "base": 350,
-      "hi": 520
+      "lo": 171.0736,
+      "base": 272.1625,
+      "hi": 404.3558
      },
      {
       "key": "txns",
       "label": "Bills / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 90,
-      "base": 150,
-      "hi": 230
+      "lo": 69.9847,
+      "base": 116.6411,
+      "hi": 178.8497
      },
      {
       "key": "days",
@@ -6597,18 +6757,18 @@
       "label": "Average bill",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 150,
-      "base": 220,
-      "hi": 340
+      "lo": 116.6411,
+      "base": 171.0736,
+      "hi": 264.3865
      },
      {
       "key": "txns",
       "label": "Bills / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 60,
-      "base": 95,
-      "hi": 150
+      "lo": 46.6564,
+      "base": 73.8727,
+      "hi": 116.6411
      },
      {
       "key": "days",
@@ -6735,12 +6895,12 @@
    "balanceSheetNotes": "inventory = shelf + rack + fridge worksheet with expiry ageing (returns to stockist) overrides DIO; receivables = institutional & khata credit (DSO 5–15d); payables = stockist credit 30–45d giving a favourable trade cycle; fixed assets = racking, refrigerator/cold-chain, billing PC, AC, CCTV",
    "monthlyRevenueBand": {
     "metro": [
-     600000,
-     2800000
+     819060,
+     1123200
     ],
     "nonmetro": [
-     220000,
-     1200000
+     573342,
+     786240
     ]
    },
    "varianceNotes": "billing software + UPI/GST concordance → ≤8–10%; main residuals are credit-sale timing (DSO) and near-expiry stock haircut, not turnover",
@@ -6779,6 +6939,19 @@
     "rank": 17,
     "medPhotos": 11,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 9,
+    "turnoverMonthly": {
+     "median": 952360,
+     "p25": 819060,
+     "p75": 1123200
+    },
+    "incomeMonthly": 120000,
+    "netMarginProxy": 0.114,
+    "bankShare": null,
+    "rescaleFactor": 0.605
    }
   },
   {
@@ -6828,18 +7001,18 @@
       "label": "Average bill",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 300,
-      "base": 450,
-      "hi": 650
+      "lo": 182.9271,
+      "base": 274.3906,
+      "hi": 396.342
      },
      {
       "key": "txns",
       "label": "Bills / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 60,
-      "base": 100,
-      "hi": 160
+      "lo": 36.5854,
+      "base": 60.9757,
+      "hi": 97.5611
      },
      {
       "key": "days",
@@ -6857,18 +7030,18 @@
       "label": "Average bill",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 180,
-      "base": 280,
-      "hi": 420
+      "lo": 109.7562,
+      "base": 170.7319,
+      "hi": 256.0979
      },
      {
       "key": "txns",
       "label": "Bills / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 45,
-      "base": 75,
-      "hi": 120
+      "lo": 27.4391,
+      "base": 45.7318,
+      "hi": 73.1708
      },
      {
       "key": "days",
@@ -6977,12 +7150,12 @@
    "balanceSheetNotes": "inventory = rack + back-stock worksheet with ageing (seasonal dead-stock haircut) overrides DIO; modest receivables (card float, small credit); payables = supplier credit 30–45d; fixed assets = fixtures, trial rooms, signage, POS, AC",
    "monthlyRevenueBand": {
     "metro": [
-     500000,
-     2200000
+     330600,
+     718535
     ],
     "nonmetro": [
-     200000,
-     1100000
+     231420,
+     502974
     ]
    },
    "varianceNotes": "UPI+card+GST concordance → ≤10–12%; photo-only ≈ ±25% owing to ticket dispersion across categories; ageing worksheet is key for BS, not turnover",
@@ -7015,6 +7188,19 @@
     "rank": 2,
     "medPhotos": 15,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 60,
+    "turnoverMonthly": {
+     "median": 487992,
+     "p25": 330600,
+     "p75": 718535
+    },
+    "incomeMonthly": 75000,
+    "netMarginProxy": 0.14,
+    "bankShare": 0.266,
+    "rescaleFactor": 0.372
    }
   },
   {
@@ -7311,18 +7497,18 @@
       "label": "Average sale",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 35,
-      "base": 60,
-      "hi": 95
+      "lo": 21.6119,
+      "base": 37.049,
+      "hi": 58.661
      },
      {
       "key": "txns",
       "label": "Sales / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 150,
-      "base": 250,
-      "hi": 380
+      "lo": 92.6226,
+      "base": 154.371,
+      "hi": 234.644
      },
      {
       "key": "days",
@@ -7340,18 +7526,18 @@
       "label": "Average sale",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 25,
-      "base": 42,
-      "hi": 70
+      "lo": 15.4371,
+      "base": 25.9343,
+      "hi": 43.2239
      },
      {
       "key": "txns",
       "label": "Sales / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 120,
-      "base": 190,
-      "hi": 300
+      "lo": 74.0981,
+      "base": 117.322,
+      "hi": 185.2452
      },
      {
       "key": "days",
@@ -7458,12 +7644,12 @@
    "balanceSheetNotes": "inventory ≈ one day's stock only (perishable) → DIO near-zero; nil receivables; payables ≈ nil (mandi is cash) so no trade-cycle cushion; fixed assets = weighing scale, crates, thela/stall, tarpaulin — spoilage carried as an opex line, not inventory",
    "monthlyRevenueBand": {
     "metro": [
-     180000,
-     900000
+     154501,
+     210168
     ],
     "nonmetro": [
-     90000,
-     500000
+     108151,
+     147118
     ]
    },
    "varianceNotes": "cash-dominant so UPI concordance weak (≥±15%); mandi purchase slip + footfall are the tightening levers; spoilage assumption (5–12%) is the main margin uncertainty",
@@ -7496,6 +7682,19 @@
     "rank": 10,
     "medPhotos": 16,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 32,
+    "turnoverMonthly": {
+     "median": 171579,
+     "p25": 154501,
+     "p75": 210168
+    },
+    "incomeMonthly": 50000,
+    "netMarginProxy": 0.298,
+    "bankShare": 0.308,
+    "rescaleFactor": 0.381
    }
   },
   {
@@ -7545,18 +7744,18 @@
       "label": "Tonnage / day",
       "unit": "t",
       "cls": "Observed",
-      "lo": 0.5,
-      "base": 1.1,
-      "hi": 2
+      "lo": 0.1841,
+      "base": 0.4049,
+      "hi": 0.7362
      },
      {
       "key": "price",
       "label": "Blended price",
       "unit": "₹/kg",
       "cls": "Benchmark",
-      "lo": 26,
-      "base": 36,
-      "hi": 46
+      "lo": 9.5711,
+      "base": 13.2523,
+      "hi": 16.9335
      },
      {
       "key": "days",
@@ -7574,18 +7773,18 @@
       "label": "Tonnage / day",
       "unit": "t",
       "cls": "Observed",
-      "lo": 0.3,
-      "base": 0.7,
-      "hi": 1.4
+      "lo": 0.1104,
+      "base": 0.2577,
+      "hi": 0.5154
      },
      {
       "key": "price",
       "label": "Blended price",
       "unit": "₹/kg",
       "cls": "Benchmark",
-      "lo": 22,
-      "base": 30,
-      "hi": 40
+      "lo": 8.0986,
+      "base": 11.0436,
+      "hi": 14.7247
      },
      {
       "key": "days",
@@ -7696,12 +7895,12 @@
    "balanceSheetNotes": "inventory low, fast-clearing (DIO ~8d) = measured pile worksheet; receivables = short recycler credit (DSO ~12d); payables tiny — pickers paid cash (DPO ~5d); CASH-HEAVY so reconcile bank sales vs cash buys carefully; fixed assets = platform scale/kanta, cutter/baler, small tempo",
    "monthlyRevenueBand": {
     "metro": [
-     500000,
-     2800000
+     105000,
+     342860
     ],
     "nonmetro": [
-     250000,
-     1400000
+     73500,
+     240002
     ]
    },
    "varianceNotes": "weighing slips + onward invoices + bank → ≤15% (cash buy-side keeps a residual gap); photo-only ≈ ±30–35% until weighbridge/kanta slips close the tonnage spread",
@@ -7721,6 +7920,19 @@
     "rank": 23,
     "medPhotos": 15,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 9,
+    "turnoverMonthly": {
+     "median": 143100,
+     "p25": 105000,
+     "p75": 342860
+    },
+    "incomeMonthly": 90000,
+    "netMarginProxy": 0.338,
+    "bankShare": null,
+    "rescaleFactor": 0.136
    }
   },
   {
@@ -8014,18 +8226,18 @@
       "label": "Clients served / day (chairs × turns)",
       "unit": "count",
       "cls": "Observed",
-      "lo": 15,
-      "base": 24,
-      "hi": 36
+      "lo": 10.1881,
+      "base": 16.301,
+      "hi": 24.4515
      },
      {
       "key": "fee",
       "label": "Average service ticket",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 300,
-      "base": 500,
-      "hi": 850
+      "lo": 203.7625,
+      "base": 339.6042,
+      "hi": 577.3271
      },
      {
       "key": "days",
@@ -8043,18 +8255,18 @@
       "label": "Clients served / day (chairs × turns)",
       "unit": "count",
       "cls": "Observed",
-      "lo": 10,
-      "base": 16,
-      "hi": 26
+      "lo": 6.7921,
+      "base": 10.8673,
+      "hi": 17.6594
      },
      {
       "key": "fee",
       "label": "Average service ticket",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 150,
-      "base": 260,
-      "hi": 450
+      "lo": 101.8812,
+      "base": 176.5942,
+      "hi": 305.6437
      },
      {
       "key": "days",
@@ -8162,12 +8374,12 @@
    "balanceSheetNotes": "inventory = retail products + colour/consumable stock worksheet (Observed) overrides DIO; near-zero receivables (cash/UPI); payables = product distributor credit 15–30d; fixed assets = chairs, mirrors, geysers, AC, dryers, product cabinet",
    "monthlyRevenueBand": {
     "metro": [
-     200000,
-     750000
+     119886,
+     232193
     ],
     "nonmetro": [
-     70000,
-     300000
+     83920,
+     162535
     ]
    },
    "varianceNotes": "chair count + appointment register + rate card drive half-width to ≤15%; photo-only ≈ ±25–30% until walk-in/appointment split is captured",
@@ -8200,6 +8412,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 20,
+    "turnoverMonthly": {
+     "median": 163770,
+     "p25": 119886,
+     "p75": 232193
+    },
+    "incomeMonthly": 60000,
+    "netMarginProxy": 0.42,
+    "bankShare": 0.74,
+    "rescaleFactor": 0.461
    }
   },
   {
@@ -8726,18 +8951,18 @@
       "label": "Active engagements / month",
       "unit": "engagements",
       "cls": "Claim",
-      "lo": 4,
-      "base": 8,
-      "hi": 14
+      "lo": 2.7952,
+      "base": 5.5905,
+      "hi": 9.7834
      },
      {
       "key": "fee",
       "label": "Avg monthly billing / engagement",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 80000,
-      "base": 140000,
-      "hi": 250000
+      "lo": 55904.9286,
+      "base": 97833.625,
+      "hi": 174702.9018
      },
      {
       "key": "days",
@@ -8755,18 +8980,18 @@
       "label": "Active engagements / month",
       "unit": "engagements",
       "cls": "Claim",
-      "lo": 3,
-      "base": 5,
-      "hi": 9
+      "lo": 2.0964,
+      "base": 3.4941,
+      "hi": 6.2893
      },
      {
       "key": "fee",
       "label": "Avg monthly billing / engagement",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 40000,
-      "base": 70000,
-      "hi": 120000
+      "lo": 27952.4643,
+      "base": 48916.8125,
+      "hi": 83857.3929
      },
      {
       "key": "days",
@@ -8884,12 +9109,12 @@
    "balanceSheetNotes": "zero inventory (DIO=0); receivables are the dominant asset (30–90d corporate terms) → high DSO drives WCR; payables = subcontractors/associates 20–30d; fixed assets = laptops, software, office fit-out; deposits (rent) held as BS asset",
    "monthlyRevenueBand": {
     "metro": [
-     500000,
-     2200000
+     225405,
+     600096
     ],
     "nonmetro": [
-     150000,
-     700000
+     157784,
+     420067
     ]
    },
    "varianceNotes": "SOW file + AA retainer credits + GSTR-1 counterparty count → ≤12%; photo-only ≈ ±30% until engagement count and rate are fixed",
@@ -8914,6 +9139,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 8,
+    "turnoverMonthly": {
+     "median": 501360,
+     "p25": 225405,
+     "p75": 600096
+    },
+    "incomeMonthly": 80000,
+    "netMarginProxy": 0.339,
+    "bankShare": null,
+    "rescaleFactor": 0.488
    }
   },
   {
@@ -11113,18 +11351,18 @@
       "label": "Consults / day",
       "unit": "patients",
       "cls": "Observed",
-      "lo": 25,
-      "base": 40,
-      "hi": 55
+      "lo": 12.9394,
+      "base": 20.703,
+      "hi": 28.4666
      },
      {
       "key": "fee",
       "label": "Avg consultation + add-on fee",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 350,
-      "base": 550,
-      "hi": 850
+      "lo": 181.1512,
+      "base": 284.6661,
+      "hi": 439.9385
      },
      {
       "key": "days",
@@ -11142,18 +11380,18 @@
       "label": "Consults / day",
       "unit": "patients",
       "cls": "Observed",
-      "lo": 30,
-      "base": 50,
-      "hi": 72
+      "lo": 15.5272,
+      "base": 25.8787,
+      "hi": 37.2654
      },
      {
       "key": "fee",
       "label": "Avg consultation + add-on fee",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 150,
-      "base": 250,
-      "hi": 420
+      "lo": 77.6362,
+      "base": 129.3937,
+      "hi": 217.3814
      },
      {
       "key": "days",
@@ -11278,12 +11516,12 @@
    "balanceSheetNotes": "inventory = small drug/consumables stock worksheet (Observed) overrides benchmark DIO; low receivables (mostly cash/UPI; TPA/insurance panel adds a short tail → DSO); payables = pharma distributor credit 15–30d; fixed assets = diagnostic/procedure equipment, furniture, refrigeration for vaccines",
    "monthlyRevenueBand": {
     "metro": [
-     300000,
-     900000
+     142880,
+     271500
     ],
     "nonmetro": [
-     120000,
-     500000
+     100016,
+     190050
     ]
    },
    "varianceNotes": "appointment register + UPI + fee board → ≤12%; photo-only ≈ ±25–30% until patient day-count and fee are pinned",
@@ -11306,6 +11544,19 @@
     "rank": 34,
     "medPhotos": 9,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 9,
+    "turnoverMonthly": {
+     "median": 147336,
+     "p25": 142880,
+     "p75": 271500
+    },
+    "incomeMonthly": 70000,
+    "netMarginProxy": 0.394,
+    "bankShare": null,
+    "rescaleFactor": 0.268
    }
   },
   {
@@ -11355,18 +11606,18 @@
       "label": "Garments / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 7.611,
-      "base": 10,
-      "hi": 13.8
+      "lo": 6.9112,
+      "base": 9.0806,
+      "hi": 12.5312
      },
      {
       "key": "fee",
       "label": "Stitching charge / garment",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 509,
-      "base": 700,
-      "hi": 1226
+      "lo": 462.2021,
+      "base": 635.6414,
+      "hi": 1113.2805
      },
      {
       "key": "days",
@@ -11384,18 +11635,18 @@
       "label": "Garments / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 5.125,
-      "base": 7,
-      "hi": 9.812
+      "lo": 4.6538,
+      "base": 6.3564,
+      "hi": 8.9099
      },
      {
       "key": "fee",
       "label": "Stitching charge / garment",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 283,
-      "base": 400,
-      "hi": 681
+      "lo": 256.9807,
+      "base": 363.2237,
+      "hi": 618.3883
      },
      {
       "key": "days",
@@ -11513,12 +11764,12 @@
    "balanceSheetNotes": "customer fabric held is NOT owned inventory (exclude from BS); owned dio ~3d = thread/lining/buttons only; near-zero receivables (paid on delivery, small advance common); payables minimal; fixed assets = sewing/overlock/interlock machines, iron & table, cabinets (primary collateral)",
    "monthlyRevenueBand": {
     "metro": [
-     120000,
-     500000
+     98390,
+     188550
     ],
     "nonmetro": [
-     50000,
-     250000
+     68873,
+     131985
     ]
    },
    "varianceNotes": "UPI collections + job-book + machine count → ≤15%; photo-only ≈ ±25% until job-ticket tally fixes garment count; strong festive/wedding seasonality — smooth with delivery register; watch owner-only labour where charge captures unpaid proprietor time",
@@ -11551,6 +11802,19 @@
     "rank": 15,
     "medPhotos": 17,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 34,
+    "turnoverMonthly": {
+     "median": 144300,
+     "p25": 98390,
+     "p75": 188550
+    },
+    "incomeMonthly": 50000,
+    "netMarginProxy": 0.295,
+    "bankShare": 1.0,
+    "rescaleFactor": 0.825
    }
   },
   {
@@ -11600,18 +11864,18 @@
       "label": "Bookings / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 7.667,
-      "base": 10,
-      "hi": 14.7
+      "lo": 1.8483,
+      "base": 2.4108,
+      "hi": 3.5438
      },
      {
       "key": "fee",
       "label": "Avg gross ticket value",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 10917,
-      "base": 15000,
-      "hi": 24916
+      "lo": 2631.8269,
+      "base": 3616.1403,
+      "hi": 6006.6501
      },
      {
       "key": "days",
@@ -11629,18 +11893,18 @@
       "label": "Bookings / day",
       "unit": "count",
       "cls": "Observed",
-      "lo": 4.472,
-      "base": 6,
-      "hi": 9.056
+      "lo": 1.0781,
+      "base": 1.4465,
+      "hi": 2.1832
      },
      {
       "key": "fee",
       "label": "Avg gross ticket value",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 7454,
-      "base": 10000,
-      "hi": 16112
+      "lo": 1796.9806,
+      "base": 2410.7602,
+      "hi": 3884.2168
      },
      {
       "key": "days",
@@ -11753,12 +12017,12 @@
    "balanceSheetNotes": "no owned inventory (dio 0); receivables = corporate-account credit (dso ~7d) net against large customer-advance liability (negative operating WC in season); payables = supplier/consolidator credit 10–20d; fixed assets = office fit-out, computers, GDS terminal; float held for travel dates is a liability, not equity",
    "monthlyRevenueBand": {
     "metro": [
-     1500000,
-     8000000
+     178560,
+     617760
     ],
     "nonmetro": [
-     400000,
-     2500000
+     124992,
+     432432
     ]
    },
    "varianceNotes": "GST+AA advance/remittance reconciliation → ≤12% on retained margin; photo-only ≈ ±30% until PNR count + invoice sample close bookings and ticket; seasonal skew (summer/festival/wedding travel) requires 12-mo ledger to avoid over-reading a peak month",
@@ -11791,6 +12055,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 25,
+    "turnoverMonthly": {
+     "median": 247000,
+     "p25": 178560,
+     "p75": 617760
+    },
+    "incomeMonthly": 70000,
+    "netMarginProxy": 0.228,
+    "bankShare": 0.632,
+    "rescaleFactor": 0.058
    }
   },
   {
@@ -12073,18 +12350,18 @@
       "label": "Jobs / day (bays × throughput)",
       "unit": "jobs",
       "cls": "Observed",
-      "lo": 8,
-      "base": 12,
-      "hi": 20
+      "lo": 4.7821,
+      "base": 7.1731,
+      "hi": 11.9551
      },
      {
       "key": "fee",
       "label": "Average job value (spares + labour)",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 1200,
-      "base": 2000,
-      "hi": 3500
+      "lo": 717.3084,
+      "base": 1195.514,
+      "hi": 2092.1495
      },
      {
       "key": "days",
@@ -12102,18 +12379,18 @@
       "label": "Jobs / day (bays × throughput)",
       "unit": "jobs",
       "cls": "Observed",
-      "lo": 5,
-      "base": 9,
-      "hi": 15
+      "lo": 2.9888,
+      "base": 5.3798,
+      "hi": 8.9664
      },
      {
       "key": "fee",
       "label": "Average job value (spares + labour)",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 600,
-      "base": 1100,
-      "hi": 2000
+      "lo": 358.6542,
+      "base": 657.5327,
+      "hi": 1195.514
      },
      {
       "key": "days",
@@ -12221,12 +12498,12 @@
    "balanceSheetNotes": "spares inventory material (DIO ~30–35d) via parts-rack worksheet; receivables from fleet/corporate & insurance jobs (DSO ~12–18d); spares-supplier payables 26–30d; fixed assets = lifts, compressors, diagnostic tools, welding — equipment as collateral",
    "monthlyRevenueBand": {
     "metro": [
-     300000,
-     1800000
+     187200,
+     319530
     ],
     "nonmetro": [
-     120000,
-     700000
+     131040,
+     223671
     ]
    },
    "varianceNotes": "bay count + job-card register + invoice sample close half-width to ≤15%; photo-only ±25–30% until spares/labour split and cash-job share are pinned",
@@ -12265,6 +12542,19 @@
     "rank": 14,
     "medPhotos": 6,
     "observed": true
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 26,
+    "turnoverMonthly": {
+     "median": 239400,
+     "p25": 187200,
+     "p75": 319530
+    },
+    "incomeMonthly": 70000,
+    "netMarginProxy": 0.254,
+    "bankShare": 0.222,
+    "rescaleFactor": 0.357
    }
   },
   {
@@ -12603,27 +12893,27 @@
       "label": "Commercial vehicles in fleet",
       "unit": "count",
       "cls": "Observed",
-      "lo": 4.623,
-      "base": 6,
-      "hi": 9.097
+      "lo": 2.7334,
+      "base": 3.5476,
+      "hi": 5.3787
      },
      {
       "key": "trips",
       "label": "Trips / vehicle / day",
       "unit": "count",
       "cls": "Claim",
-      "lo": 1.525,
-      "base": 1.8,
-      "hi": 2.213
+      "lo": 0.9017,
+      "base": 1.0643,
+      "hi": 1.3085
      },
      {
       "key": "fare",
       "label": "Avg realisation / trip",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 5140,
-      "base": 6000,
-      "hi": 7377
+      "lo": 3039.0713,
+      "base": 3547.5541,
+      "hi": 4361.7177
      },
      {
       "key": "util",
@@ -12650,27 +12940,27 @@
       "label": "Commercial vehicles in fleet",
       "unit": "count",
       "cls": "Observed",
-      "lo": 3.015,
-      "base": 4,
-      "hi": 5.97
+      "lo": 1.7826,
+      "base": 2.365,
+      "hi": 3.5298
      },
      {
       "key": "trips",
       "label": "Trips / vehicle / day",
       "unit": "count",
       "cls": "Claim",
-      "lo": 1.27,
-      "base": 1.5,
-      "hi": 1.861
+      "lo": 0.7509,
+      "base": 0.8869,
+      "hi": 1.1003
      },
      {
       "key": "fare",
       "label": "Avg realisation / trip",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 4343,
-      "base": 5000,
-      "hi": 6149
+      "lo": 2567.8379,
+      "base": 2956.2951,
+      "hi": 3635.6517
      },
      {
       "key": "util",
@@ -12798,12 +13088,12 @@
    "balanceSheetNotes": "Commercial vehicles are the principal fixed asset AND collateral, matched by vehicle-loan liabilities (EMI a major fixed obligation via AA feed, outside opex). Low inventory (spares/tyres, dio ≈ 5–6). Contract/hire receivables billed monthly drive WCR (dso ≈ 38–45). Fuel/toll payables modest (dpo ≈ 10–12). Depot deposit a minor BS asset if rented. (If a dealership instead: inventory of vehicles, floor-plan financing and DSO change entirely.)",
    "monthlyRevenueBand": {
     "metro": [
-     500000,
-     5000000
+     178560,
+     610064
     ],
     "nonmetro": [
-     250000,
-     2500000
+     124992,
+     427045
     ]
    },
    "varianceNotes": "FASTag + RC count + contract/GSTR-1 → ≤12–15%; photo-only ≈ ±30–35% until trip sheet and FASTag/odometer close the trips and utilisation gaps (idle vehicles are the key uncertainty).",
@@ -12823,6 +13113,19 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 33,
+    "turnoverMonthly": {
+     "median": 265200,
+     "p25": 178560,
+     "p75": 610064
+    },
+    "incomeMonthly": 60000,
+    "netMarginProxy": 0.221,
+    "bankShare": 0.132,
+    "rescaleFactor": 0.207
    }
   },
   {
@@ -14352,18 +14655,18 @@
       "label": "Throughput value / sq ft / day",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 18,
-      "base": 28,
-      "hi": 42
+      "lo": 16.9994,
+      "base": 26.4435,
+      "hi": 39.6652
      },
      {
       "key": "area",
       "label": "Godown usable area",
       "unit": "sq ft",
       "cls": "Observed",
-      "lo": 3000,
-      "base": 5000,
-      "hi": 8000
+      "lo": 2833.229,
+      "base": 4722.0483,
+      "hi": 7555.2772
      },
      {
       "key": "days",
@@ -14381,18 +14684,18 @@
       "label": "Throughput value / sq ft / day",
       "unit": "₹",
       "cls": "Claim",
-      "lo": 12,
-      "base": 20,
-      "hi": 32
+      "lo": 11.3329,
+      "base": 18.8882,
+      "hi": 30.2211
      },
      {
       "key": "area",
       "label": "Godown usable area",
       "unit": "sq ft",
       "cls": "Observed",
-      "lo": 2000,
-      "base": 3500,
-      "hi": 5500
+      "lo": 1888.8193,
+      "base": 3305.4338,
+      "hi": 5194.2531
      },
      {
       "key": "days",
@@ -14511,12 +14814,12 @@
    "balanceSheetNotes": "principal stock is held-on-behalf (off-book or clearly segregated — do NOT count as own inventory); own inventory small (DIO ~28d); receivables = commission + trade dues (DSO ~35d); payables to principal (DPO ~22d); fixed assets = racking, handling equipment, godown if owned (collateral)",
    "monthlyRevenueBand": {
     "metro": [
-     2000000,
-     9000000
+     2596076,
+     11371000
     ],
     "nonmetro": [
-     900000,
-     4500000
+     1817253,
+     7959700
     ]
    },
    "varianceNotes": "commission statement + e-way + GST concordance → ≤10%; photo-only ≈ ±25% until dispatch register and principal statement close the psf gap",
@@ -14536,6 +14839,867 @@
     "rank": null,
     "medPhotos": null,
     "observed": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), assessed self-employed cases",
+    "n": 18,
+    "turnoverMonthly": {
+     "median": 3485880,
+     "p25": 2596076,
+     "p75": 11371000
+    },
+    "incomeMonthly": 120000,
+    "netMarginProxy": 0.036,
+    "bankShare": 0.021,
+    "rescaleFactor": 0.892
+   }
+  },
+  {
+   "id": "salaried_manager",
+   "name": "Salaried — Manager / Executive",
+   "archetype": "salaried",
+   "subtype": "Manager / Executive",
+   "economics": "Salaried manager / executive. Income from a monthly wage; roughly 11% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 24000,
+      "base": 30000,
+      "hi": 47114
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 24000,
+      "base": 30000,
+      "hi": 47114
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     24000,
+     47114
+    ],
+    "nonmetro": [
+     24000,
+     47114
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (11%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 844,
+    "incomeMonthly": {
+     "median": 30000,
+     "p25": 24000,
+     "p75": 47114
+    },
+    "cashShare": 0.111,
+    "bankShare": 0.889,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
+   }
+  },
+  {
+   "id": "salaried_worker",
+   "name": "Salaried — Worker / Skilled labour",
+   "archetype": "salaried",
+   "subtype": "Worker / Skilled labour",
+   "economics": "Salaried worker / skilled labour. Income from a monthly wage; roughly 22% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 18000,
+      "base": 22000,
+      "hi": 30000
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 18000,
+      "base": 22000,
+      "hi": 30000
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     18000,
+     30000
+    ],
+    "nonmetro": [
+     18000,
+     30000
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (22%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 753,
+    "incomeMonthly": {
+     "median": 22000,
+     "p25": 18000,
+     "p75": 30000
+    },
+    "cashShare": 0.223,
+    "bankShare": 0.777,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
+   }
+  },
+  {
+   "id": "salaried_office",
+   "name": "Salaried — Office / Clerical",
+   "archetype": "salaried",
+   "subtype": "Office / Clerical",
+   "economics": "Salaried office / clerical. Income from a monthly wage; roughly 17% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 18500,
+      "base": 25000,
+      "hi": 35000
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 18500,
+      "base": 25000,
+      "hi": 35000
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     18500,
+     35000
+    ],
+    "nonmetro": [
+     18500,
+     35000
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (17%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 306,
+    "incomeMonthly": {
+     "median": 25000,
+     "p25": 18500,
+     "p75": 35000
+    },
+    "cashShare": 0.173,
+    "bankShare": 0.827,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
+   }
+  },
+  {
+   "id": "salaried_driver",
+   "name": "Salaried — Driver",
+   "archetype": "salaried",
+   "subtype": "Driver",
+   "economics": "Salaried driver. Income from a monthly wage; roughly 20% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 35000
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 35000
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     20000,
+     35000
+    ],
+    "nonmetro": [
+     20000,
+     35000
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (20%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 289,
+    "incomeMonthly": {
+     "median": 25000,
+     "p25": 20000,
+     "p75": 35000
+    },
+    "cashShare": 0.197,
+    "bankShare": 0.803,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
+   }
+  },
+  {
+   "id": "salaried_supervisor",
+   "name": "Salaried — Supervisor",
+   "archetype": "salaried",
+   "subtype": "Supervisor",
+   "economics": "Salaried supervisor. Income from a monthly wage; roughly 16% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 35000
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 35000
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     20000,
+     35000
+    ],
+    "nonmetro": [
+     20000,
+     35000
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (16%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 279,
+    "incomeMonthly": {
+     "median": 25000,
+     "p25": 20000,
+     "p75": 35000
+    },
+    "cashShare": 0.158,
+    "bankShare": 0.842,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
+   }
+  },
+  {
+   "id": "salaried_teacher",
+   "name": "Salaried — Teacher / Professional",
+   "archetype": "salaried",
+   "subtype": "Teacher / Professional",
+   "economics": "Salaried teacher / professional. Income from a monthly wage; roughly 5% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 25000,
+      "base": 35000,
+      "hi": 55000
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 25000,
+      "base": 35000,
+      "hi": 55000
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     25000,
+     55000
+    ],
+    "nonmetro": [
+     25000,
+     55000
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (5%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 223,
+    "incomeMonthly": {
+     "median": 35000,
+     "p25": 25000,
+     "p75": 55000
+    },
+    "cashShare": 0.054,
+    "bankShare": 0.946,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
+   }
+  },
+  {
+   "id": "salaried_support",
+   "name": "Salaried — Support / Services staff",
+   "archetype": "salaried",
+   "subtype": "Support / Services staff",
+   "economics": "Salaried support / services staff. Income from a monthly wage; roughly 9% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 40000
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 40000
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     20000,
+     40000
+    ],
+    "nonmetro": [
+     20000,
+     40000
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (9%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 206,
+    "incomeMonthly": {
+     "median": 25000,
+     "p25": 20000,
+     "p75": 40000
+    },
+    "cashShare": 0.092,
+    "bankShare": 0.908,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
+   }
+  },
+  {
+   "id": "salaried_sales",
+   "name": "Salaried — Sales / Field",
+   "archetype": "salaried",
+   "subtype": "Sales / Field",
+   "economics": "Salaried sales / field. Income from a monthly wage; roughly 24% of this cohort is paid partly or wholly in cash and needs workplace or employer verification rather than a bank statement.",
+   "registry": {
+    "metro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    },
+    "nonmetro": {
+     "gm": [
+      1,
+      1,
+      1
+     ],
+     "opex": [
+      0,
+      0,
+      0
+     ],
+     "dio": 0,
+     "dso": 0,
+     "dpo": 0,
+     "eta": 0
+    }
+   },
+   "drivers": {
+    "metro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 30000
+     }
+    ],
+    "nonmetro": [
+     {
+      "key": "salary",
+      "label": "Monthly salary",
+      "unit": "₹",
+      "cls": "Claim",
+      "lo": 20000,
+      "base": 25000,
+      "hi": 30000
+     }
+    ]
+   },
+   "shotList": [
+    "workplace",
+    "id_card",
+    "payslip",
+    "salary_bank_statement",
+    "residence",
+    "neighbourhood"
+   ],
+   "evidenceItems": [],
+   "monthlyRevenueBand": {
+    "metro": [
+     20000,
+     30000
+    ],
+    "nonmetro": [
+     20000,
+     30000
+    ]
+   },
+   "varianceNotes": "Bank-credited portion verified from statement; cash-paid portion (24%) needs employer confirmation + workplace visit.",
+   "benchmark": {
+    "status": "fixture",
+    "source": "Agrim HFC LOS",
+    "geography": "IN",
+    "effectivePeriod": "2026-Q3",
+    "owner": "Credit analytics",
+    "driftThreshold": "±15% income",
+    "signedOff": false
+   },
+   "realFin": {
+    "source": "Agrim HFC LOS (Veefin datamart), salaried cases",
+    "n": 188,
+    "incomeMonthly": {
+     "median": 25000,
+     "p25": 20000,
+     "p75": 30000
+    },
+    "cashShare": 0.245,
+    "bankShare": 0.755,
+    "verification": "bank statement + payslip (bank-credited); employer + workplace (cash portion)"
    }
   }
  ]

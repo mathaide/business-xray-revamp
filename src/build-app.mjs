@@ -130,6 +130,10 @@ for (const o of kb.industries){
 const REALBOOK = {};
 for (const o of kb.industries){ if (o.realBook) REALBOOK[o.id] = o.realBook; }
 const REALBOOK_META = (kb.meta && kb.meta.realBook) || null;
+/* ---------- real financial calibration (Agrim LOS datamart) ---------- */
+const REALFIN = {};
+for (const o of kb.industries){ if (o.realFin) REALFIN[o.id] = o.realFin; }
+const REALFIN_META = (kb.meta && kb.meta.realFin) || null;
 
 /* ---------- slice worker.js (same regions build-static uses) ---------- */
 const slice = (start, end) => { const a=src.indexOf(start), b=src.indexOf(end);
@@ -200,9 +204,11 @@ const IND_CAP = ${JSON.stringify(IND_CAP)};
 const IND_FAC = ${JSON.stringify(IND_FAC)};
 const GENERIC = new Set(${JSON.stringify(GENERIC)});
 const FACET_LABEL = ${JSON.stringify(FACET_LABEL)};
-const ARCHE_LABEL = {retail:'Retail / kirana',fnb:'Food & beverage',services:'Services',warehouse:'Warehouse / distribution',scrap:'Scrap trading',manufacturing:'Light manufacturing',transport:'Transport / logistics'};
+const ARCHE_LABEL = {salaried:'Salaried (income verification)',retail:'Retail / kirana',fnb:'Food & beverage',services:'Services',warehouse:'Warehouse / distribution',scrap:'Scrap trading',manufacturing:'Light manufacturing',transport:'Transport / logistics'};
 const REALBOOK = ${JSON.stringify(REALBOOK)};
 const REALBOOK_META = ${JSON.stringify(REALBOOK_META)};
+const REALFIN = ${JSON.stringify(REALFIN)};
+const REALFIN_META = ${JSON.stringify(REALFIN_META)};
 let BAND='metro';
 (function registerIndustries(){
   for(const s of IND_SECTORS){
@@ -231,8 +237,8 @@ const oldPicker = `function sectorPicker(){
   return '<select class="select" id="sectorSel">'+META.sectors.map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+s.name+'</option>').join('')+'</select>';
 }`;
 const newPicker = `function sectorPicker(){
-  function _rbRank(s){ var r=REALBOOK[s.id]; return (r&&r.observed)?r.rank:999; }
-  function _rbLabel(s){ var r=REALBOOK[s.id]; return (r&&r.observed)?(s.name+' · #'+r.rank+' ('+r.share+'%)'):(s.name+' · ext'); }
+  function _rbRank(s){ if(s.archetype==='salaried'){ var f=REALFIN[s.id]; return (f&&f.n)? -f.n : 0; } var r=REALBOOK[s.id]; return (r&&r.observed)?r.rank:999; }
+  function _rbLabel(s){ if(s.archetype==='salaried'){ var f=REALFIN[s.id]; return s.name+(f&&f.n?(' · n='+f.n):''); } var r=REALBOOK[s.id]; return (r&&r.observed)?(s.name+' · #'+r.rank+' ('+r.share+'%)'):(s.name+' · ext'); }
   const groups={}; META.sectors.forEach(s=>{ if(GENERIC.has(s.id))return; (groups[s.archetype]=groups[s.archetype]||[]).push(s); });
   let opts=Object.keys(ARCHE_LABEL).filter(a=>groups[a]).map(a=>'<optgroup label="'+ARCHE_LABEL[a]+'">'+groups[a].slice().sort((x,y)=>(_rbRank(x)-_rbRank(y))||x.name.localeCompare(y.name)).map(s=>'<option value="'+s.id+'"'+(s.id===STATE.sector?' selected':'')+'>'+_rbLabel(s)+'</option>').join('')+'</optgroup>').join('');
   const gen=META.sectors.filter(s=>GENERIC.has(s.id));
@@ -484,15 +490,44 @@ function xraySignals(result,sector){
   var narrowed=(STATE&&STATE._narrowed)||{};
   var vk=(typeof _pick==='function')?_pick(STATE.drivers,VOL_KEYS):null;
   var pk=(typeof _pick==='function')?_pick(STATE.drivers,PRICE_KEYS):null;
+  var rf=REALFIN[sector.id];
   var cashShare = (tri.cashSharePct!=null) ? tri.cashSharePct/100
+                 : (rf && rf.bankShare!=null) ? (1 - rf.bankShare)
                  : (CASH_HEAVY.has(sector.id)?0.6:(CASH_DEF[arch]!=null?CASH_DEF[arch]:0.30));
+  var cashFromReal = (tri.cashSharePct==null) && rf && rf.bankShare!=null;
   return { pnl:pnl,tri:tri,ex:ex,arch:arch,xe:xe,has:has,
     volObs:!!(vk&&narrowed[vk]), priceObs:!!(pk&&narrowed[pk]),
     invObs:pnl.inventorySource==='observed',
     bankSig:!!(tri.banking), cashKnown:(tri.cashSharePct!=null),
     gst:!!(ex.gstin||tri.gstin), energy:!!(ex.energy&&ex.energy.kwh>0),
     cc:(result.quality&&result.quality.captureCompletion)||0,
-    relW:result.turnover.relWidth||1, cashShare:cashShare };
+    relW:result.turnover.relWidth||1, cashShare:cashShare, rf:rf, cashFromReal:cashFromReal };
+}
+function _salariedPanel(result,sector){
+  var rf=REALFIN[sector.id]||{}; var im=(rf.incomeMonthly)||{};
+  var cash=(rf.cashShare!=null?rf.cashShare:0), bankp=Math.round((1-cash)*100), cashp=Math.round(cash*100);
+  var band=(im.p25!=null? (fmtCr(im.p25)+'–'+fmtCr(im.p75)) : '—');
+  var med=(im.median!=null? fmtCr(im.median): (result&&result.turnover?fmtCr(result.turnover.base):'—'));
+  var emi=(im.median!=null? Math.max(0, im.median*0.5): 0);
+  var conf=Math.round(52+bankp*0.38); // more bank-credited -> more verifiable
+  return '<div class="card xstmt" style="margin-bottom:16px">'
+    +'<div class="xhead"><h2>Income verification — '+esc(sector.name)+'</h2><span class="tag Derived">salaried type</span>'
+    +'<span class="spacer"></span>'+(rf.n?'<span class="xchip">real-book: n='+rf.n+' cases</span>':'')+'</div>'
+    +'<p class="note" style="margin:2px 0 8px">'+esc(sector.economics||'')+'</p>'
+    +'<div class="xmeta">'
+      +'<span class="xchip">Monthly salary (real): '+med+' median</span>'
+      +'<span class="xchip">band '+band+'</span>'
+      +'<span class="xchip">'+bankp+'% bank-credited</span>'
+      +'<span class="xchip" style="'+(cashp>=20?'background:#fdf3e1;border-color:#f0d9a0;color:#8a5a00':'')+'">'+cashp+'% cash-paid</span>'
+    +'</div>'
+    +'<table style="margin-top:6px"><tbody>'
+    +'<tr class="xline total"><td>Assessed monthly income</td><td class="num">'+(im.p25!=null?fmtCr(im.p25):'—')+'</td><td class="num">'+med+'</td><td class="num">'+(im.p75!=null?fmtCr(im.p75):'—')+'</td><td>'+_cf(conf)+'</td><td class="small dim">real p25–p75</td></tr>'
+    +'<tr class="xline sub"><td>· bank-credited ('+bankp+'%)</td><td colspan="3" class="small">verified from 6-month bank statement + payslip</td><td>'+_cf(90)+'</td><td class="small dim">deterministic</td></tr>'
+    +'<tr class="xline sub"><td>· cash-paid ('+cashp+'%)</td><td colspan="3" class="small">employer confirmation + workplace visit — Business X-Ray discipline applied to the employer</td><td>'+_cf(48)+'</td><td class="small dim">judgemental</td></tr>'
+    +'<tr class="xline net"><td>Indicative serviceable EMI</td><td class="num">'+fmtCr(emi*0.8)+'</td><td class="num">'+fmtCr(emi)+'</td><td class="num">'+fmtCr(emi*1.2)+'</td><td>'+_cf(conf)+'</td><td class="small dim">~50% of net income (FOIR)</td></tr>'
+    +'</tbody></table>'
+    +'<p class="disclaimer" style="margin-top:12px">Salaried income-verification profile calibrated to '+(rf.n||0)+' real Agrim cases. The '+cashp+'% paid in cash cannot be bank-verified and takes the same workplace-assessment discipline as a self-employed case. A human underwriter decides.</p>'
+    +'</div>';
 }
 function _xrow(cls,label,mo,conf,note){
   return '<tr class="xline '+cls+'"><td>'+label+'</td>'
@@ -501,6 +536,7 @@ function _xrow(cls,label,mo,conf,note){
     +'<td class="small dim">'+(note||'')+'</td></tr>';
 }
 function xrayStatement(result,sector){
+  if(sector.archetype==='salaried') return _salariedPanel(result,sector);
   var S=xraySignals(result,sector), pnl=S.pnl, xe=S.xe;
   var mSales=_xmo(pnl.revenue), mCOGS=_xmo(pnl.cogs), mGP=_xmo(pnl.grossProfit), mOpex=_xmo(pnl.opex), mEB=_xmo(pnl.ebitda);
   var bankSh=1-S.cashShare;
@@ -519,7 +555,7 @@ function xrayStatement(result,sector){
   var cGM=_xcl(55+((S.has('pukka_invoice')||S.priceObs)?15:0)+(S.gst?10:0),40,88);
   var cOpex=_xcl(50+(S.energy?12:0),40,74);
   var cEB=Math.round((cSales+cGM)/2);
-  var cCash=S.bankSig?86:(S.cashKnown?62:46);
+  var cCash=S.bankSig?86:(S.cashKnown?62:(S.cashFromReal?70:46));
   var cDraw=_xcl(35+(S.has('rental_agreement')?12:0),30,60);
   var cDebt=S.bankSig?62:(xe.assetFinance?42:36);
   var cNet=Math.round((cEB+cDraw+cDebt)/3);
@@ -536,7 +572,7 @@ function xrayStatement(result,sector){
   var premVal=rentBase?('Rented · rent ~'+fmtCr(rentBase)+'/mo, '+(xe.depositMonths||'—')+'-mo deposit'):'Premises tenure to verify';
   var dims=[
     ['Actual monthly sales', fmtCr(mSales.base)+'/mo ('+fmtCr(mSales.lo)+'–'+fmtCr(mSales.hi)+')', cSales, 'Drivers × '+(S.priceObs?'photo-read price':'benchmark price')+' × '+(S.volObs?'photo-read volume':'benchmark volume')+(S.gst?'; GST-concordant':'')],
-    ['Cash vs banking turnover', Math.round(bankSh*100)+'% banked · '+Math.round(S.cashShare*100)+'% cash', cCash, S.bankSig?'AA/UPI credits ÷ turnover; cash = residual':'Modelled residual — confirm via Account Aggregator pull'],
+    ['Cash vs banking turnover', Math.round(bankSh*100)+'% banked · '+Math.round(S.cashShare*100)+'% cash', cCash, S.bankSig?'AA/UPI credits ÷ turnover; cash = residual':(S.cashFromReal?('Real book: '+Math.round(bankSh*100)+'% banked across '+S.rf.n+' Agrim cases'):'Modelled residual — confirm via Account Aggregator pull')],
     ['Sustainable gross margin', Math.round(pnl.margins.gm[1]*100)+'% (γ) · GP '+fmtCr(mGP.base)+'/mo', cGM, 'Registry margin band'+(S.has('pukka_invoice')?', invoice-corroborated':', not yet invoice-corroborated')],
     ['Household drawings', fmtCr(mDraw.base)+'/mo (~'+Math.round(dr*100)+'% of surplus)', cDraw, 'Modelled proprietor drawings — confirm from household interview / AA debits'],
     ['Existing formal & informal debt', xe.assetFinance?('Asset-finance EMI likely · est. '+fmtCr(mDebt.base)+'/mo'):'No formal debt evidenced yet', cDebt, (S.bankSig?'AA debit mandates':'Balance-sheet profile')+' — bureau + AA required to confirm'],
@@ -555,6 +591,9 @@ function xrayStatement(result,sector){
   var rb=result.reviewBand||{};
   var bm=xe.benchmark||{status:'fixture',effectivePeriod:'2026-Q3',owner:'Credit analytics'};
   var provChip='<span class="xchip" title="Benchmark registry: '+(bm.owner||'')+' · drift '+(bm.driftThreshold||'')+' · not yet independently validated">benchmark: '+(bm.status||'fixture')+' · '+(bm.effectivePeriod||'')+'</span>';
+  var rfChip='';
+  if(S.rf && S.rf.turnoverMonthly){ var tm=S.rf.turnoverMonthly;
+    rfChip='<span class="xchip" title="Real assessed monthly turnover from '+S.rf.n+' Agrim LOS cases; the model base is now scaled to this median">real turnover: '+fmtCr(tm.p25)+'–'+fmtCr(tm.p75)+'/mo · n='+S.rf.n+(S.cashFromReal?' · '+Math.round((1-S.cashShare)*100)+'% banked':'')+'</span>'; }
   var rbk=REALBOOK[sector.id]; var rbChip='';
   if(rbk){ rbChip = rbk.observed
     ? '<span class="xchip" title="Frequency in the Agrim HFC reference book (733 field cases, Dec 2021–Jan 2023); median '+rbk.medPhotos+' photos captured per visit">real-book: #'+rbk.rank+' · '+rbk.share+'% of self-employed cases</span>'
@@ -577,7 +616,7 @@ function xrayStatement(result,sector){
     +'<div class="xhead"><h2>Business X-Ray — reconstructed monthly cash-flow</h2><span class="tag Derived">reconstructed</span>'
     +'<span class="spacer"></span><span class="xchip">Evidence strength '+overall+'%</span></div>'
     +'<p class="note" style="margin:2px 0 8px">A bottom-up cash-flow rebuilt from the premises evidence and external signals — not a form summary. Every line carries an <b>evidence-strength</b> score (how well the line is corroborated), and a human underwriter makes the decision.</p>'
-    +'<div class="xmeta"><span class="xchip">Reconstructed from '+photos+' photo(s)</span><span class="xchip">'+extSig+' external signal(s)</span><span class="xchip">interval ±'+pct(result.turnover.relWidth/2)+'</span>'+rbChip+provChip+'</div>'
+    +'<div class="xmeta"><span class="xchip">Reconstructed from '+photos+' photo(s)</span><span class="xchip">'+extSig+' external signal(s)</span><span class="xchip">interval ±'+pct(result.turnover.relWidth/2)+'</span>'+rfChip+rbChip+provChip+'</div>'
     +stmt
     +'<div class="grid cols-3" style="margin-top:12px">'
     +'<div class="kpi xkpi"><span class="k">Net monthly surplus</span><span class="v" style="font-size:20px">'+fmtCr(mNet.base)+'</span><span class="small dim">repayment source</span></div>'

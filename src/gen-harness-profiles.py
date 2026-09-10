@@ -60,6 +60,7 @@ def driver_product(drivers):
     return p
 
 out = []
+inds = [x for x in inds if x.get("archetype") != "salaried"]  # harness covers business profiles only
 for n, x in enumerate(inds, start=1):
     iid = x["id"]; arch = x["archetype"]
     region = "metro"
