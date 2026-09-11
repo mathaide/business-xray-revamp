@@ -42,9 +42,18 @@ const facetMeta = {};
 for (const [id,m] of Object.entries(baseMeta)) facetMeta[id]=m;
 for (const [id,m] of Object.entries(extraMeta)) facetMeta[id]=m;
 for (const f of kb.newFacets) if(!facetMeta[f.id]) facetMeta[f.id]={label:titleCase(f.id),shoot:f.output||"",validates:f.validates||"",data:f.output||"",feeds:f.validates||""};
+// ---- salaried income-verification facets ----
+Object.assign(facetMeta, {
+  workplace:{label:"Workplace / employer premises",shoot:"The office, shop or site where the applicant works, with signage",validates:"Employer exists and is operating → employment is real",data:"Workplace imagery; employer signage",feeds:"Employment reality; employer scale"},
+  employer_letter:{label:"Employer letter / ID proof of job",shoot:"Employment letter, appointment letter or company ID (redact numbers)",validates:"Named employer, role and joining → employment tenure",data:"Employment letter / company ID",feeds:"Employer name; role; tenure"},
+  payslip:{label:"Salary slip",shoot:"Latest salary slip (mask account and PAN numbers)",validates:"Declared gross and net salary, deductions",data:"Salary slip",feeds:"Gross/net salary; deductions"},
+  salary_bank_statement:{label:"Salary bank statement",shoot:"Bank statement page showing the salary credit (mask account number)",validates:"Salary actually credited to bank → bank-verified income",data:"Bank statement salary credit",feeds:"Bank-credited salary; net income"},
+  id_card:{label:"Identity card",shoot:"Government photo ID (mask the number)",validates:"Applicant identity",data:"Photo ID",feeds:"Identity"},
+  residence:{label:"Residence",shoot:"The applicant's home exterior and one interior",validates:"Stable residence → residence stability",data:"Residence imagery",feeds:"Residence stability"},
+});
 
 // facets whose frames typically contain people or number plates → privacy crop reminder
-const PRIVACY = ["exterior","neighbourhood","dispatch","weighbridge"];
+const PRIVACY = ["exterior","neighbourhood","dispatch","weighbridge","id_card","payslip","salary_bank_statement","employer_letter"];
 // facets intentionally OUTSIDE the establishment boundary → graded for neighbourhood / catchment quality
 const OUTSIDE = ["exterior","neighbourhood"];
 
@@ -61,7 +70,7 @@ const DOMAINS = {
 };
 const DOMAIN_LABEL = {identity:"Identity",location:"Location",demand:"Demand",activity:"Activity",banking:"Banking",energy:"Energy",occupancy:"Occupancy",compliance:"Compliance",turnover:"Turnover",pricing:"Pricing",cash:"Cash",capacity:"Capacity",assets:"Assets",inventory:"Inventory",throughput:"Throughput",receivables:"Receivables",contracts:"Contracts",scale:"Scale",income:"Income",recurring:"Recurring",wip:"WIP"};
 
-const ARCHE={retail:"Retail / kirana",fnb:"Food & beverage",services:"Services",warehouse:"Warehouse / distribution",scrap:"Scrap trading",manufacturing:"Light manufacturing",transport:"Transport / logistics"};
+const ARCHE={salaried:"Salaried (income verification)",retail:"Retail / kirana",fnb:"Food & beverage",services:"Services",warehouse:"Warehouse / distribution",scrap:"Scrap trading",manufacturing:"Light manufacturing",transport:"Transport / logistics"};
 const CAT={
   exterior:"Outside",neighbourhood:"Outside",interior:"Inside",display:"Inside",storage:"Inside",machinery:"Inside",
   qr_code:"Counter",price_board:"Counter",kacha_bill:"Counter",credit_ledger:"Counter",safe_vault:"Counter",
@@ -69,7 +78,9 @@ const CAT={
   engagement_letter:"Document",commission_statement:"Document",receivables_ageing:"Document",policy_register:"Document",
   renewal_register:"Document",deal_register:"Document",utility_meter:"Utility",weighbridge:"Yard",dispatch:"Yard",
   staff_seating:"Inside",portfolio_board:"Inside",project_wip:"Site",
+  workplace:"Outside",employer_letter:"Document",payslip:"Document",salary_bank_statement:"Document",id_card:"Document",residence:"Outside",
 };
+Object.assign(DOMAINS,{workplace:["identity","activity"],employer_letter:["compliance","income"],payslip:["income"],salary_bank_statement:["banking","income"],id_card:["identity"],residence:["location"]});
 const data = kb.industries.map(o=>({
   id:o.id,name:o.name,arch:o.archetype,subtype:o.subtype||"",economics:o.economics||"",
   shotList:o.shotList, drivers:o.drivers,
